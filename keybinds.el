@@ -15,6 +15,13 @@
   "C-k" 'evil-window-up
   "C-l" 'evil-window-right)
 
+;; ── Line motion (normal mode) ────────────────────────────────
+;; Capital L/H for end/start of line (like $ and 0 in Vim).
+;; Overrides Evil's default H/L (window-top/window-bottom).
+(general-def 'normal
+  "L" 'evil-end-of-line
+  "H" 'evil-beginning-of-line)
+
 ;; ── Avy — jump to any visible character ────────────────────────
 ;; s + one char  → jump to word starting with that char
 ;; S + two chars → jump to that exact character pair

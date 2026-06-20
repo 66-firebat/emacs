@@ -392,6 +392,14 @@
   (load (expand-file-name "panes.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
+;;  13g.  Centaur Tabs — Aesthetic Tab Bar
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "centaur-tabs.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  14.  Firebat Theme
 ;; ---------------------------------------------------------------------------
 
