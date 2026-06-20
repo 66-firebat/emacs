@@ -43,7 +43,7 @@ Used as a hint, but my/vterm-new always picks the lowest free index.")
   "Return the lowest unused vterm index (0, 1, 2, ...).
 Scans all buffer names for \"vterm-<N>\" prefixes."
   (let ((i 0))
-    (while (let ((target (format "%d --" i)))
+    (while (let ((target (format "%d " i)))
              (catch 'exists
                (dolist (b (buffer-list) nil)
                  (when (string-prefix-p target (buffer-name b))
@@ -56,13 +56,13 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
   (interactive)
   (let ((index (my/vterm-next-available)))
     (setq my-vterm-counter index)
-    (let ((buf-name (format "%d -- waiting" index)))
+    (let ((buf-name (format "%d  waiting" index)))
       (vterm buf-name)
       (with-current-buffer buf-name
         (when (and (buffer-live-p (current-buffer))
                    vterm--process
                    (process-live-p vterm--process))
-          (rename-buffer (format "%d -- %d" index
+          (rename-buffer (format "%d  %d" index
                                   (process-id vterm--process))))))))
 
 ;; ═════════════════════════════════════════════════════════════════
@@ -122,7 +122,7 @@ Sorted numerically."
   (let ((indices (delq nil
                        (mapcar (lambda (b)
                                  (let ((n (buffer-name b)))
-                                   (when (string-match "\\`\\([0-9]+\\) --" n)
+                                   (when (string-match "\\`\\([0-9]+\\) " n)
                                                      (buffer-name b))
                                    (match-string 1 (buffer-name b))))
                                (my/vterm-buffer-list)))))
@@ -131,11 +131,11 @@ Sorted numerically."
 
 (defun my/vterm-spawn-at-index (index)
   "Create a new vterm buffer with the given INDEX and return it."
-  (let* ((buf-name (format "%d -- waiting" index))
+  (let* ((buf-name (format "%d  waiting" index))
          (buf (vterm buf-name)))
     (with-current-buffer buf
       (when (and vterm--process (process-live-p vterm--process))
-        (rename-buffer (format "%d -- %d" index
+        (rename-buffer (format "%d  %d" index
                                 (process-id vterm--process)))))
     buf))
 
@@ -165,7 +165,7 @@ Sorted numerically."
   "Return the vterm buffer with the given INDEX, or nil."
   (car (seq-filter
         (lambda (b)
-          (string-match-p (format "\\`%d --" index) (buffer-name b)))
+          (string-match-p (format "\\`%d " index) (buffer-name b)))
         (my/vterm-buffer-list))))
 
 (defun my/buffer-goto ()
