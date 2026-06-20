@@ -217,14 +217,12 @@ Background: #2b2b2b  Accent: #ff4400")
  `(centaur-tabs-unselected ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
  `(centaur-tabs-selected-modified ((t (:background ,firebat-accent :foreground ,firebat-bg :weight bold))))
  `(centaur-tabs-unselected-modified ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
- `(centaur-tabs-active-bar-face ((t (:background ,firebat-bg))))
+ `(centaur-tabs-active-bar-face ((t (:background ,firebat-accent))))
  `(centaur-tabs-close-selected ((t (:inherit centaur-tabs-selected))))
  `(centaur-tabs-close-unselected ((t (:inherit centaur-tabs-unselected))))
  `(centaur-tabs-modified-marker-selected ((t (:foreground ,firebat-accent))))
  `(centaur-tabs-modified-marker-unselected ((t (:foreground ,firebat-fg-alt))))
  `(my/centaur-tabs-group-face ((t (:foreground ,firebat-accent :background ,firebat-bg :weight bold))))
- `(my/centaur-tabs-indicator-active ((t (:foreground ,firebat-accent :background ,firebat-bg))))
- `(my/centaur-tabs-indicator-inactive ((t (:foreground "#444444" :background ,firebat-bg))))
 
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Which-key

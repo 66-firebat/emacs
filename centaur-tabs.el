@@ -162,33 +162,21 @@ Result is cached per project path."
         (puthash project-path result my/centaur-tabs--branch-cache)
         result))))
 
-;; ── Tab label — active/inactive indicator ─────────────────────
-;; This replaces the default `centaur-tabs-buffer-tab-label' so
-;; every tab name is preceded by  or .
+;; ── Tab label — active tab separator only ─────────────────────
+;; The active tab gets │ on both sides.  No active/inactive
+;; indicator icons.
 
 (defun my/centaur-tabs-tab-label (tab)
-  "Return a label for TAB with active/inactive indicator.
+  "Return a label for TAB.
 
-The active tab gets a │ after the buffer name:
-     init.el │      theme.el      centaur-tabs.el"
+Active tab: │vterm.el│    Inactive tabs: just the buffer name."
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
-         (indicator (if selected-p "" ""))
-         (indicator-face (if selected-p
-                             'my/centaur-tabs-indicator-active
-                           'my/centaur-tabs-indicator-inactive))
          (buf (car tab))
          (bufname (buffer-name buf)))
-    ;; Use font-lock-face (not face) so the outer propertize in
-    ;; centaur-tabs-line-tab (which sets 'face on the whole tab)
-    ;; doesn't override our indicator colors.
     (if selected-p
-        (format "%s %s"
-                (propertize indicator 'font-lock-face indicator-face)
-                bufname)
-      (format "%s %s"
-              (propertize indicator 'font-lock-face indicator-face)
-              bufname))))
+        (format " %s " bufname)
+      bufname)))
 
 ;; ── Trim trailing space ───────────────────────────────────────
 ;; centaur-tabs-line-tab (a defsubst) appends " " to every tab
