@@ -36,6 +36,12 @@
   ;; also work.  Avoid "wave" and "zigzag" in -nw mode.
   (setq centaur-tabs-style "bar")
 
+  ;; ── Custom text separators between tabs ────────────────────
+  ;; In terminal mode the built-in XPM separator images render as
+  ;; nil, so we use plain Unicode characters instead.
+  (setq centaur-tabs-style-left  "│")
+  (setq centaur-tabs-style-right "│")
+
   ;; ── File icons (handled inside the custom label function) ───
   ;; Built-in icon rendering is disabled — the active/inactive
   ;; indicator (/) is prepended before the Nerd Font file icon
