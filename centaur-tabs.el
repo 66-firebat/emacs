@@ -26,16 +26,24 @@
                  `((:eval (my/centaur-tabs-group-name))
                    (:eval (centaur-tabs-line)))))
 
+  ;; ── Tab label — active/inactive indicator ──────────────────
+  ;; Each tab is prepended with  (active) or  (inactive) so
+  ;; you can tell at a glance which window's tab bar is focused.
+  (setq centaur-tabs-tab-label-function 'my/centaur-tabs-tab-label)
+
   ;; ── Tab style (terminal-friendly) ────────────────────────────
   ;; "bar" is cleanest in terminal; "rounded", "chamfer", "slant"
   ;; also work.  Avoid "wave" and "zigzag" in -nw mode.
   (setq centaur-tabs-style "bar")
 
-  ;; ── Icons via Nerd Fonts (already configured in doom-modeline.el) ──
-  (setq centaur-tabs-set-icons t)
-  (setq centaur-tabs-icon-type 'nerd-icons)
-  (setq centaur-tabs-plain-icons nil)       ;; Use themed colors
-  (setq centaur-tabs-gray-out-icons 'buffer) ;; Dim icons on inactive tabs
+  ;; ── File icons (handled inside the custom label function) ───
+  ;; Built-in icon rendering is disabled — the active/inactive
+  ;; indicator (/) is prepended before the Nerd Font file icon
+  ;; inside `my/centaur-tabs-tab-label' so the order is:
+  ;;     statuscolumn.el   (not    statuscolumn.el)
+  (setq centaur-tabs-set-icons nil)
+  (setq centaur-tabs-plain-icons nil)
+  (setq centaur-tabs-gray-out-icons 'buffer)
 
   ;; ── Selected-tab indicator bar ───────────────────────────────
   (setq centaur-tabs-set-bar 'under)        ;; Underline active tab
@@ -135,6 +143,25 @@ Result is cached per project path."
                (error "󱃓"))))
         (puthash project-path result my/centaur-tabs--branch-cache)
         result))))
+
+;; ── Tab label — active/inactive indicator ─────────────────────
+;; This replaces the default `centaur-tabs-buffer-tab-label' so
+;; every tab name is preceded by  or .
+
+(defun my/centaur-tabs-tab-label (tab)
+  "Return a label for TAB with active/inactive indicator + file icon.
+
+    init.el   (active tab)
+    theme.el   (inactive tab)"
+  (let* ((tabset (centaur-tabs-current-tabset))
+         (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
+         (indicator (if selected-p "" ""))
+         (buf (car tab))
+         (bufname (buffer-name buf))
+         (file-icon
+          (with-current-buffer buf
+            (or (ignore-errors (nerd-icons-icon-for-buffer)) ""))))
+    (format " %s %s %s" indicator file-icon bufname)))
 
 ;; ── Label construction ─────────────────────────────────────────
 

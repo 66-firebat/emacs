@@ -81,9 +81,9 @@ Maps 12.5%% bands to glyphs, like a scrollbar thumb."
     '(eldoc bar window-state workspace-name window-number
             modals matches follow my-percent my-buffer-info remote-host)
     '(compilation objed-state misc-info project-name persp-name
-                  battery grip irc mu4e gnus github debug repl lsp
+                  battery grip irc mu4e gnus github debug repl
                   minor-modes input-method indent-info buffer-encoding
-                  major-mode process vcs check time))
+                  process check time))
   ;; Apply the redefined modeline
   (doom-modeline-set-modeline 'main t))
 
