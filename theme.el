@@ -213,9 +213,9 @@ Background: #2b2b2b  Accent: #ff4400")
  ;; ═══════════════════════════════════════════════════════════════
 
  `(centaur-tabs-default ((t (:background ,firebat-bg :foreground ,firebat-bg))))
- `(centaur-tabs-selected ((t (:background ,firebat-bg :foreground ,firebat-fg :weight bold))))
+ `(centaur-tabs-selected ((t (:background ,firebat-accent :foreground ,firebat-bg :weight bold))))
  `(centaur-tabs-unselected ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
- `(centaur-tabs-selected-modified ((t (:background ,firebat-bg :foreground ,firebat-accent :weight bold))))
+ `(centaur-tabs-selected-modified ((t (:background ,firebat-accent :foreground ,firebat-bg :weight bold))))
  `(centaur-tabs-unselected-modified ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
  `(centaur-tabs-active-bar-face ((t (:background ,firebat-bg))))
  `(centaur-tabs-close-selected ((t (:inherit centaur-tabs-selected))))

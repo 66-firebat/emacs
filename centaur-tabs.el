@@ -24,7 +24,7 @@
   (let ((fmt-var (symbol-value 'centaur-tabs-display-line-format)))
     (set-default fmt-var
                  `((:eval (my/centaur-tabs-group-name))
-                   (:eval (centaur-tabs-line)))))
+                   (:eval (my/centaur-tabs-line)))))
 
   ;; ── Tab label — active/inactive indicator ──────────────────
   ;; Each tab is prepended with  (active) or  (inactive) so
@@ -36,11 +36,7 @@
   ;; also work.  Avoid "wave" and "zigzag" in -nw mode.
   (setq centaur-tabs-style "bar")
 
-  ;; ── Custom text separators between tabs ────────────────────
-  ;; In terminal mode the built-in XPM separator images render as
-  ;; nil, so we use plain Unicode characters instead.
-  (setq centaur-tabs-style-left  "│")
-  (setq centaur-tabs-style-right "│")
+
 
   ;; ── File icons (handled inside the custom label function) ───
   ;; Built-in icon rendering is disabled — the active/inactive
@@ -53,6 +49,12 @@
 
   ;; ── Selected-tab indicator bar ───────────────────────────────
   (setq centaur-tabs-set-bar 'under)        ;; Underline active tab
+
+  ;; ── Edge margins — remove default leading/trailing spaces ──
+  ;; centaur-tabs-left/right-edge-margin default to " " which adds
+  ;; unwanted padding on every tab.  Set to empty to eliminate it.
+  (setq centaur-tabs-left-edge-margin "")
+  (setq centaur-tabs-right-edge-margin "")
 
   ;; ── Close button & modified marker ───────────────────────────
   (setq centaur-tabs-set-close-button nil)  ;; Hide close button (cleaner)
@@ -77,6 +79,16 @@
   (define-key centaur-tabs-mode-map (kbd "<M-tab>") 'centaur-tabs-forward)
   (define-key centaur-tabs-mode-map (kbd "C-<tab>") 'centaur-tabs-forward)
   (define-key centaur-tabs-mode-map (kbd "C-S-<iso-lefttab>") 'centaur-tabs-backward)
+
+  ;; Clean up any previously-registered advice on centaur-tabs-line
+  ;; from earlier versions of this file.
+  (advice-remove 'centaur-tabs-line #'my/centaur-tabs--trim-tab-trailing)
+  (advice-remove 'centaur-tabs-line-format #'my/centaur-tabs--trim-tabs)
+
+  ;; Clear any cached template so the next redisplay rebuilds it
+  ;; from scratch with the new wrapper.
+  (centaur-tabs-set-template (centaur-tabs-current-tabset) nil)
+  (force-window-update (selected-window))
 
   ;; ── Additional convenience commands ──────────────────────────
   ;; Jump to a tab by typing a displayed character (ace-jump style)
@@ -157,8 +169,8 @@ Result is cached per project path."
 (defun my/centaur-tabs-tab-label (tab)
   "Return a label for TAB with active/inactive indicator.
 
-   init.el   (active tab, indicator #ff4400)
-   theme.el   (inactive tab, indicator #444444)"
+The active tab gets a │ after the buffer name:
+     init.el │      theme.el      centaur-tabs.el"
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (indicator (if selected-p "" ""))
@@ -170,9 +182,30 @@ Result is cached per project path."
     ;; Use font-lock-face (not face) so the outer propertize in
     ;; centaur-tabs-line-tab (which sets 'face on the whole tab)
     ;; doesn't override our indicator colors.
-    (format " %s %s"
-            (propertize indicator 'font-lock-face indicator-face)
-            bufname)))
+    (if selected-p
+        (format "%s %s"
+                (propertize indicator 'font-lock-face indicator-face)
+                bufname)
+      (format "%s %s"
+              (propertize indicator 'font-lock-face indicator-face)
+              bufname))))
+
+;; ── Trim trailing space ───────────────────────────────────────
+;; centaur-tabs-line-tab (a defsubst) appends " " to every tab
+;; label.  Instead of fighting defsubst inlining, we wrap the
+;; display :eval so we can post-process the format list.
+
+(defun my/centaur-tabs-line ()
+  "Like `centaur-tabs-line' but without trailing spaces on tab strings."
+  (let ((fmt (centaur-tabs-line)))
+    (when (consp fmt)
+      (let ((tabs (nth 2 fmt)))
+        (when (consp tabs)
+          (setcar (nthcdr 2 fmt)
+                  (mapcar (lambda (s)
+                            (if (stringp s) (string-trim-right s) s))
+                          tabs)))))
+    fmt))
 
 ;; ── Label construction ─────────────────────────────────────────
 
