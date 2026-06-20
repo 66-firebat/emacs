@@ -32,31 +32,26 @@
   "Index of the most recently spawned vterm via SPC t t.
 Used as a hint, but my/vterm-new always picks the lowest free index.")
 
-(defun my/vterm-get-index (buffer)
-  "Extract the vterm index from BUFFER name, or nil.
-A buffer named \"vterm-3 -- 12345\" returns the integer 3."
-  (let ((name (buffer-name buffer)))
-    (when (and name (string-match "\\`vterm-\([0-9]+\)" name))
-      (string-to-number (match-string 1 name)))))
-
-(defun my/vterm-used-indices ()
-  "Return a sorted list of all vterm indices currently in use."
-  (let ((indices (delq nil
-                       (mapcar #'my/vterm-get-index (buffer-list)))))
-    (sort (delete-dups indices) #'<)))
-
 (defun my/vterm-next-available ()
-  "Return the lowest unused vterm index, starting from 0."
-  (let ((used (my/vterm-used-indices))
-        (i 0))
-    (while (member i used)
+  "Return the lowest unused vterm index (0, 1, 2, ...).
+Scans all buffer names for \"vterm-<N>\" prefixes."
+  (let ((i 0))
+    (while (let ((target (format "vterm-%d" i)))
+             (catch 'exists
+               (dolist (b (buffer-list) nil)
+                 (when (string-prefix-p target (buffer-name b))
+                   (throw 'exists t)))))
       (setq i (1+ i)))
     i))
 
 (defun my/vterm-new ()
   "Spawn a new vterm at the lowest available index."
   (interactive)
-  (let ((index (my/vterm-next-available)))
+  (let* ((vterm-bufs (seq-filter (lambda (b)
+                                    (string-prefix-p "vterm-" (buffer-name b)))
+                                  (buffer-list)))
+         (index (my/vterm-next-available)))
+    (message "DEBUG: vterm-buffers=%d next=%d" (length vterm-bufs) index)
     (setq my-vterm-counter index)
     (let ((buf-name (format "vterm-%d -- waiting" index)))
       (vterm buf-name)
