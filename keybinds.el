@@ -223,6 +223,13 @@ Sorted numerically."
   "p g" '(consult-grep :which-key "grep project")
   "p b" '(project-switch-to-buffer :which-key "project buffer")
 
+  ;; Pi — AI coding agent (prefix group: SPC p i)
+  "p i" '(nil :which-key "pi")
+  "p i i" '(pi-coding-agent :which-key "start/focus pi")
+  "p i t" '(pi-coding-agent-toggle :which-key "toggle pi windows")
+  "p i s" '(pi-coding-agent-open-session-file :which-key "open session file")
+  "p i m" '(pi-coding-agent-select-model :which-key "select model")
+
   ;; Search
   "s s" '(consult-line :which-key "search line")
   "s g" '(consult-grep :which-key "grep")
@@ -243,6 +250,7 @@ Sorted numerically."
   "t l" '(display-line-numbers-mode :which-key "toggle line numbers")
   "t w" '(whitespace-mode :which-key "toggle whitespace")
   "t t" '(my/vterm-new :which-key "new vterm")
+  "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dirvish
   "d d" '(dirvish :which-key "dirvish")
@@ -268,6 +276,24 @@ Sorted numerically."
 
   ;; Buffer / Vterm digits (hidden from which-key)
   )
+
+;; ── Pi input buffer mode-map customizations ──────────────────────────────
+(with-eval-after-load 'pi-coding-agent-input
+  (general-def 'emacs pi-coding-agent-input-mode-map
+    "M-RET" 'pi-coding-agent-send
+    "S-RET" 'pi-coding-agent-send)
+
+  (general-def '(normal insert emacs) pi-coding-agent-input-mode-map
+    "C-c C-c" 'pi-coding-agent-send
+    "C-c C-s" 'pi-coding-agent-queue-steering
+    "C-c C-k" 'pi-coding-agent-abort
+    "C-c C-p" 'pi-coding-agent-menu
+    "C-c C-r" 'pi-coding-agent-resume-session))
+
+;; ── Pi chat buffer mode-map customizations ──────────────────────────────
+(with-eval-after-load 'pi-coding-agent-render
+  (general-def 'normal pi-coding-agent-chat-mode-map
+    "q" 'pi-coding-agent-quit))
 
 (provide 'keybinds)
 ;; keybinds.el ends here

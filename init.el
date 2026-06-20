@@ -416,6 +416,19 @@
   (load (expand-file-name "dirvish.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
+;;  13i.  Pi Coding Agent — AI-assisted coding frontend
+;; ---------------------------------------------------------------------------
+;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
+;; with a Markdown chat buffer and a separate prompt composition buffer.
+;; Requires the Pi CLI installed and in PATH: npm install -g @earendil-works/pi-coding-agent
+;;
+;; Quick start: M-x pi  or  SPC p i
+;;
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "pi.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
 ;;  14.  Firebat Theme
 ;; ---------------------------------------------------------------------------
 
