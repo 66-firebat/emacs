@@ -213,9 +213,9 @@ Background: #2b2b2b  Accent: #ff4400")
  ;; ═══════════════════════════════════════════════════════════════
 
  `(centaur-tabs-default ((t (:background ,firebat-bg :foreground ,firebat-bg))))
- `(centaur-tabs-selected ((t (:background ,firebat-hl :foreground ,firebat-fg :weight bold))))
+ `(centaur-tabs-selected ((t (:background ,firebat-bg :foreground ,firebat-fg :weight bold))))
  `(centaur-tabs-unselected ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
- `(centaur-tabs-selected-modified ((t (:background ,firebat-hl :foreground ,firebat-accent :weight bold))))
+ `(centaur-tabs-selected-modified ((t (:background ,firebat-bg :foreground ,firebat-accent :weight bold))))
  `(centaur-tabs-unselected-modified ((t (:background ,firebat-bg :foreground ,firebat-fg-alt))))
  `(centaur-tabs-active-bar-face ((t (:background ,firebat-bg))))
  `(centaur-tabs-close-selected ((t (:inherit centaur-tabs-selected))))
@@ -223,6 +223,8 @@ Background: #2b2b2b  Accent: #ff4400")
  `(centaur-tabs-modified-marker-selected ((t (:foreground ,firebat-accent))))
  `(centaur-tabs-modified-marker-unselected ((t (:foreground ,firebat-fg-alt))))
  `(my/centaur-tabs-group-face ((t (:foreground ,firebat-accent :background ,firebat-bg :weight bold))))
+ `(my/centaur-tabs-indicator-active ((t (:foreground ,firebat-accent :background ,firebat-bg))))
+ `(my/centaur-tabs-indicator-inactive ((t (:foreground "#444444" :background ,firebat-bg))))
 
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Which-key

@@ -151,17 +151,26 @@ Result is cached per project path."
 (defun my/centaur-tabs-tab-label (tab)
   "Return a label for TAB with active/inactive indicator + file icon.
 
-    init.el   (active tab)
-    theme.el   (inactive tab)"
+    init.el   (active tab, indicator #ff4400)
+    theme.el   (inactive tab, indicator #444444)"
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (indicator (if selected-p "" ""))
+         (indicator-face (if selected-p
+                             'my/centaur-tabs-indicator-active
+                           'my/centaur-tabs-indicator-inactive))
          (buf (car tab))
          (bufname (buffer-name buf))
          (file-icon
           (with-current-buffer buf
             (or (ignore-errors (nerd-icons-icon-for-buffer)) ""))))
-    (format " %s %s %s" indicator file-icon bufname)))
+    ;; Use font-lock-face (not face) so the outer propertize in
+    ;; centaur-tabs-line-tab (which sets 'face on the whole tab)
+    ;; doesn't override our indicator colors.
+    (format " %s %s %s"
+            (propertize indicator 'font-lock-face indicator-face)
+            file-icon
+            bufname)))
 
 ;; ── Label construction ─────────────────────────────────────────
 
