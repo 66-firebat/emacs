@@ -9,7 +9,7 @@
 
 ;; ── Window navigation (normal mode) ────────────────────────────
 ;; Ctrl + hjkl to move between windows, like Vim
-(general-def 'normal
+(general-def '(normal insert)
   "C-h" 'evil-window-left
   "C-j" 'evil-window-down
   "C-k" 'evil-window-up
@@ -204,7 +204,7 @@ Sorted numerically."
   "b n" '(next-buffer :which-key "next buffer")
   "b p" '(previous-buffer :which-key "previous buffer")
 
-  ;; Tabs
+  ;; Tabs — after switching, enter insert if landing on vterm
   "h" '(centaur-tabs-backward :which-key "prev tab")
   "l" '(centaur-tabs-forward :which-key "next tab")
 
@@ -296,6 +296,13 @@ Sorted numerically."
 (with-eval-after-load 'pi-coding-agent-render
   (general-def 'normal pi-coding-agent-chat-mode-map
     "q" 'pi-coding-agent-quit))
+
+;; ── Auto-insert when switching to vterm ──────────────────────────
+;; These three commands are the main buffer-switching paths that can
+;; land on a vterm buffer in the same window.  The advice checks
+;; after each command and enters insert mode if needed.
+(dolist (cmd '(centaur-tabs-backward centaur-tabs-forward my/switch-to-other-buffer))
+  (advice-add cmd :after #'my/vterm-enter-insert-after-switch))
 
 (provide 'keybinds)
 ;; keybinds.el ends here

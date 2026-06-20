@@ -7,8 +7,9 @@
 ;;  Requires: (emacsPackages.vterm) in configuration.nix
 ;;
 ;;  Design choices:
-;;    - Vim-by-default: vterm starts in evil NORMAL state
-;;    - `i` enters insert state; ESC returns to normal state
+;;    - Insert-by-default: vterm starts and stays in evil INSERT state
+;;    - ESC returns to normal state for buffer navigation
+;;    - Switching to vterm auto-enters insert mode
 ;;    - Shell integration enabled for directory tracking
 ;; =============================================================================
 
@@ -18,15 +19,26 @@
 ;; M-x vterm (and SPC t t) appear as available commands.
 (require 'vterm-autoloads)
 
-;; ── Initial state: vim-by-default ──────────────────────────────
-;; Start vterm in evil normal state so vim keys (j/k, gg, /, etc.)
-;; work for buffer navigation. Only `i` passes through to the shell.
-(evil-set-initial-state 'vterm-mode 'normal)
+;; ── Initial state: insert-by-default ────────────────────────────
+;; New vterms start in insert state so you can type immediately.
+;; Switching to a vterm buffer (any method) also forces insert mode.
+(evil-set-initial-state 'vterm-mode 'insert)
 
 ;; ── Evil keybindings ───────────────────────────────────────────
 ;; All handled by evil-collection — uses insert state so
 ;; i/a/A/I enter insert mode, ESC returns to normal state.
 ;; See evil-collection-vterm.el in the elpa directory.
+
+;; ── Auto-insert helper ──────────────────────────────────────────
+;; Used via :after advice on specific buffer-switching commands.
+;; See keybinds.el for the advices on centaur-tabs-forward,
+;; centaur-tabs-backward, and my/switch-to-other-buffer.
+(defun my/vterm-enter-insert-after-switch (&rest _)
+  "After switching to a vterm buffer, enter insert state."
+  (when (and (derived-mode-p 'vterm-mode)
+             (not (minibufferp))
+             (not (evil-insert-state-p)))
+    (evil-insert-state)))
 
 ;; ── Cursor snap ──────────────────────────────────────────────
 ;; After entering insert mode (i/I), send an ANSI "Report Cursor
