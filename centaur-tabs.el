@@ -169,14 +169,14 @@ Result is cached per project path."
 (defun my/centaur-tabs-tab-label (tab)
   "Return a label for TAB.
 
-Active tab: │vterm.el│    Inactive tabs: just the buffer name."
+Active tab: │vterm.el│    Inactive tabs:  vterm.el  (padded)."
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
          (bufname (buffer-name buf)))
     (if selected-p
-        (format " %s " bufname)
-      bufname)))
+        (format "█ %s  " bufname)
+      (format " %s " bufname))))
 
 ;; ── Trim trailing space ───────────────────────────────────────
 ;; centaur-tabs-line-tab (a defsubst) appends " " to every tab
