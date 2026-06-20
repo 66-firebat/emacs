@@ -31,6 +31,15 @@
   '((t (:foreground "#ff4400" :weight bold)))
   "Face for the ┣ separator on the current line.")
 
+;; ── Config ─────────────────────────────────────────────────────────────────
+
+(defvar sc-excluded-modes
+  '(pi-coding-agent-chat-mode
+    pi-coding-agent-input-mode)
+  "Major modes (or derived modes) to exclude from status-column rendering.
+Add any mode where line-number overlays would conflict with the buffer's
+own display (e.g., terminal emulators, chat UIs, special modes).")
+
 ;; ── State ──────────────────────────────────────────────────────────────────
 
 (defvar-local sc--overlays nil
@@ -106,7 +115,11 @@ Uses `vertical-motion' so continuation (wrapped) lines are covered too."
 ;; ── Activation / Deactivation ─────────────────────────────────────────────
 
 (defun sc--activate ()
-  "Enable status-column line numbers in the current buffer."
+  "Enable status-column line numbers in the current buffer.
+Skips buffers whose major mode (or a derived mode) is listed in
+`sc-excluded-modes'."
+  (when (apply #'derived-mode-p sc-excluded-modes)
+    (cl-return-from sc--activate))
   (sc--refresh)
   (add-hook 'post-command-hook       #'sc--refresh nil 'local)
   (add-hook 'window-scroll-functions #'sc--refresh nil 'local)
