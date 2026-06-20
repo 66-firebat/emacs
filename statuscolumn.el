@@ -94,27 +94,13 @@ Uses `vertical-motion' so continuation (wrapped) lines are covered too."
               (overlay-put ov 'sc-p t)
               (push ov sc--overlays)
 
-              ;; If this is the last buffer line, add after-string for EOB fill
-              (when (eobp)
-                (let* ((num-width (sc--num-width))
-                       ;; Aligns with buffer lines: number-padding + "┃ "
-                       (eob-prefix (propertize (concat (make-string num-width ?\s) " ┇ ")
-                                               'face 'sc-separator))
-                       (fill (- (window-body-height)
-                                (count-screen-lines (window-start) (point-max) t))))
-                  (when (> fill 0)
-                    (overlay-put ov 'after-string
-                                 (concat "\n"
-                                         (mapconcat (lambda (_) eob-prefix)
-                                                    (make-list fill t) "\n")))))))
-
             ;; Move to the next VISUAL line
             (when (eobp) (throw 'done nil))
             (let ((last-pos (point)))
               (vertical-motion 1)
               (when (= (point) last-pos) (throw 'done nil))))
 
-          )))))
+          ))))))
 
 
 ;; ── Activation / Deactivation ─────────────────────────────────────────────
