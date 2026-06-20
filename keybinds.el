@@ -198,10 +198,14 @@ Sorted numerically."
   "f s" '(save-buffer :which-key "save buffer")
 
   ;; Buffers
-  "b b" '(my/switch-to-other-buffer :which-key "previous buffer")
+  "k k" '(my/switch-to-other-buffer :which-key "previous buffer")
   "b d" '(kill-current-buffer :which-key "kill buffer")
   "b n" '(next-buffer :which-key "next buffer")
   "b p" '(previous-buffer :which-key "previous buffer")
+
+  ;; Tabs
+  "h" '(centaur-tabs-backward :which-key "prev tab")
+  "l" '(centaur-tabs-forward :which-key "next tab")
 
   ;; Windows
   "w v" '(evil-window-vsplit :which-key "vertical split")
@@ -240,16 +244,16 @@ Sorted numerically."
   "t w" '(whitespace-mode :which-key "toggle whitespace")
   "t t" '(my/vterm-new :which-key "new vterm")
 
-  ;; Help
-  "h f" '(describe-function :which-key "describe function")
-  "h v" '(describe-variable :which-key "describe variable")
-  "h k" '(describe-key :which-key "describe key")
-  "h m" '(describe-mode :which-key "describe mode")
+  ;; Docs
+  "d f" '(describe-function :which-key "describe function")
+  "d v" '(describe-variable :which-key "describe variable")
+  "d k" '(describe-key :which-key "describe key")
+  "d m" '(describe-mode :which-key "describe mode")
 
   ;; Eglot / LSP
-  "l a" '(eglot-code-actions :which-key "code actions")
-  "l r" '(eglot-rename :which-key "rename")
-  "l f" '(eglot-format :which-key "format")
+  "e a" '(eglot-code-actions :which-key "code actions")
+  "e r" '(eglot-rename :which-key "rename")
+  "e f" '(eglot-format :which-key "format")
 
   ;; Org / Notes
   "n c" '(org-capture :which-key "capture")
