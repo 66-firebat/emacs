@@ -150,6 +150,16 @@
   (dirvish-window-fringe 2)
 
   :config
+  ;; ── Open at current directory (force) ────────────────────────
+  ;; Skip dirvish's session resume so it always opens at the
+  ;; buffer's default-directory (e.g., vterm's CWD).
+  (defun my/dirvish (&optional path)
+    "Open dirvish at PATH or `default-directory'.
+Ignores `dirvish-reuse-session' to always respect the current CWD."
+    (interactive)
+    (let ((dirvish-reuse-session nil))
+      (dirvish (or path default-directory))))
+
   ;; ── Keybindings ─────────────────────────────────────────────────
   :config
   (define-key dirvish-mode-map "?" 'dirvish-dispatch)

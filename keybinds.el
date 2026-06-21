@@ -258,7 +258,7 @@ Sorted numerically."
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dirvish
-  "d d" '(dirvish :which-key "dirvish")
+  "d d" '(my/dirvish :which-key "dirvish")
   "d s" '(dirvish-side :which-key "dirvish sidebar")
   "d f" '(dirvish-fd :which-key "dirvish fd search")
   "d D" '(dirvish-dispatch :which-key "dirvish dispatch")
