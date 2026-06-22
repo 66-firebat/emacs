@@ -407,7 +407,13 @@
   (load (expand-file-name "centaur-tabs.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13h.  Dirvish — Modern File Manager
+;;  13h.  Eat — Terminal Emulator
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "eat.el" real-dir)))
+
 ;; ---------------------------------------------------------------------------
 ;;  13i.  Pi Coding Agent — AI-assisted coding frontend
 ;; ---------------------------------------------------------------------------

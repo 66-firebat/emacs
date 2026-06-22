@@ -35,10 +35,11 @@
 
 (defvar sc-excluded-modes
   '(pi-coding-agent-chat-mode
-    pi-coding-agent-input-mode)
+    pi-coding-agent-input-mode
+    eat-mode)
   "Major modes (or derived modes) to exclude from status-column rendering.
 Add any mode where line-number overlays would conflict with the buffer's
-own display (e.g., terminal emulators, chat UIs, special modes).")
+own display (e.g., terminal emulators like eat, chat UIs, special modes).")
 
 ;; ── State ──────────────────────────────────────────────────────────────────
 
@@ -51,8 +52,7 @@ own display (e.g., terminal emulators, chat UIs, special modes).")
 ;; ── Helpers ────────────────────────────────────────────────────────────────
 
 (defun sc--num-width ()
-  "Return the number of characters needed for the largest line number.
-Minimum 6 for consistent padding across all buffers, including vterm."
+  "Return the number of characters needed for the largest line number."
   (let ((max-line (line-number-at-pos (point-max) 'absolute)))
     (max 5 (length (format "%d" max-line)))))
 
@@ -101,15 +101,14 @@ Uses `vertical-motion' so continuation (wrapped) lines are covered too."
                    (ov        (make-overlay (point) (point))))
               (overlay-put ov 'before-string prefix)
               (overlay-put ov 'sc-p t)
-              (push ov sc--overlays)
+              (push ov sc--overlays))
 
             ;; Move to the next VISUAL line
             (when (eobp) (throw 'done nil))
             (let ((last-pos (point)))
               (vertical-motion 1)
               (when (= (point) last-pos) (throw 'done nil))))
-
-          ))))))
+          )))))
 
 
 ;; ── Activation / Deactivation ─────────────────────────────────────────────
