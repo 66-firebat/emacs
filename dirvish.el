@@ -160,6 +160,19 @@ Ignores `dirvish-reuse-session' to always respect the current CWD."
     (let ((dirvish-reuse-session nil))
       (dirvish (or path default-directory))))
 
+  ;; ── Keep dired header lines visible ───────────────────────────
+  ;; Dirvish hides the dired header (path + size) via the `invisible'
+  ;; property, which also suppresses the statuscolumn line numbers on
+  ;; those lines.  We override this: instead of `invisible', use a
+  ;; face with tiny `:height' to hide the text visually while keeping
+  ;; the lines fully present for the statuscolumn.
+  (advice-add 'dirvish--hide-dired-header :after
+              (lambda (&rest _)
+                (dolist (o (overlays-in (point-min) (point-max)))
+                  (when (overlay-get o 'dired-header)
+                    (overlay-put o 'invisible nil)
+                    (overlay-put o 'face '(:height 0.01 :background unspecified :foreground unspecified))))))
+
   ;; ── Keybindings ─────────────────────────────────────────────────
   :config
   (define-key dirvish-mode-map "?" 'dirvish-dispatch)
