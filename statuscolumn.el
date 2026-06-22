@@ -1,148 +1,191 @@
 ;; -*- lexical-binding: t; -*-
 ;;
 ;; =============================================================================
-;;  statuscolumn.el — Visual Line Number Column
+;;  statuscolumn.el — Visual separator for Emacs' built-in line numbers
 ;;
-;;  Displays an absolute line number and separator before every
-;;  visual (displayed) line, including continuation/wrapped lines.
+;;  Uses ZERO per-visual-line overlays.  Instead, Emacs' C display engine
+;;  handles everything:
 ;;
-;;  - Absolute line numbers only
-;;  - Visual lines (each wrapped line gets its own number)
-;;  - Dynamic width — pads to fit the largest line number in the buffer
-;;  - Current line uses "┣" separator; all other lines use "┃"
-;;  - All visual lines of the current logical line get "┣"
-;;  - Works in all buffers and all modes
-;;  - Not toggleable — always on
+;;    1. Line numbers    — `display-line-numbers 'visual' (C engine)
+;;    2. Separator ┃/┣  — `line-prefix' + `wrap-prefix' variables (C engine)
+;;    3. Cursor line ┣   — Single overlay overriding line-prefix on cursor line
+;;    4. Diff-hl icons   — diff-hl-fallback-to-margin (for terminal)
+;;
+;;  Benefits: zero flicker, works in ALL modes (eat, vterm, GUI, TTY),
+;;  minimal Elisp code, no overlay management.
 ;; =============================================================================
 
-;; ── Faces ─────────────────────────────────────────────────────────────────
-;; Faces are defined here as fallback defaults. The firebat theme (theme.el)
-;; overrides these colors when active via custom-theme-set-faces.
-
-(defface sc-line-number
-  '((t (:foreground "#444444")))
-  "Face for the line number portion of the status column.")
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Faces
+;; ═════════════════════════════════════════════════════════════════════════════
 
 (defface sc-separator
   '((t (:foreground "#444444")))
-  "Face for the ┃ separator in the status column.")
+  "Face for the statuscolumn separator ┃ on non-current lines."
+  :group 'statuscolumn)
 
 (defface sc-bump
   '((t (:foreground "#ff4400" :weight bold)))
-  "Face for the ┣ separator on the current line.")
+  "Face for the current-line separator ┣ (firebat accent)."
+  :group 'statuscolumn)
 
-;; ── Config ─────────────────────────────────────────────────────────────────
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Internal variables
+;; ═════════════════════════════════════════════════════════════════════════════
 
-(defvar sc-excluded-modes
-  '(pi-coding-agent-chat-mode
-    pi-coding-agent-input-mode
-    eat-mode)
-  "Major modes (or derived modes) to exclude from status-column rendering.
-Add any mode where line-number overlays would conflict with the buffer's
-own display (e.g., terminal emulators like eat, chat UIs, special modes).")
+(defvar-local sc--cursor-overlay nil
+  "Single overlay on the cursor line that overrides `line-prefix' to ┣.")
 
-;; ── State ──────────────────────────────────────────────────────────────────
+(defvar-local sc--prefix-string nil
+  "Cached propertized separator string (┃) for non-cursor lines.")
 
-(defvar-local sc--overlays nil
-  "List of active status-column overlays in the current buffer.")
+(defvar-local sc--bump-prefix-string nil
+  "Cached propertized separator string (┣) for the cursor line.")
 
-(defvar-local sc--change-fn nil
-  "Cached after-change function so we can remove it later.")
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Core — update the single cursor-line overlay
+;; ═════════════════════════════════════════════════════════════════════════════
 
-;; ── Helpers ────────────────────────────────────────────────────────────────
+(defun sc--update ()
+  "Move the ┣ overlay to the cursor's line.
+This is the ONLY dynamic element — everything else is handled by the
+C display engine via `line-prefix' and `wrap-prefix' variables."
+  (let ((bol (line-beginning-position))
+        (eol (line-beginning-position 2)))
+    (if (and sc--cursor-overlay
+             (overlay-buffer sc--cursor-overlay)
+             (= (overlay-start sc--cursor-overlay) bol))
+        ;; Overlay is already at the right position — nothing to do
+        nil
+      ;; Move or create the overlay
+      (if (and sc--cursor-overlay (overlay-buffer sc--cursor-overlay))
+          (move-overlay sc--cursor-overlay bol eol)
+        (setq sc--cursor-overlay
+              (let ((ov (make-overlay bol eol nil t)))
+                (overlay-put ov 'line-prefix sc--bump-prefix-string)
+                (overlay-put ov 'wrap-prefix sc--bump-prefix-string)
+                (overlay-put ov 'evaporate t)
+                ov))))))
 
-(defun sc--num-width ()
-  "Return the number of characters needed for the largest line number."
-  (let ((max-line (line-number-at-pos (point-max) 'absolute)))
-    (max 5 (length (format "%d" max-line)))))
+(defun sc--clear ()
+  "Remove the cursor overlay."
+  (when sc--cursor-overlay
+    (delete-overlay sc--cursor-overlay)
+    (setq sc--cursor-overlay nil)))
 
-(defun sc--build-prefix (logical-line is-cur)
-  "Build a propertized string like \" 3 ┃ \" for LOGICAL-LINE.
-IS-CUR non-nil means this is a visual line of the current line,
-so use ┣ instead of ┃."
-  (let* ((width  (sc--num-width))
-         (fmt    (format "%%%dd" width))
-         (sep-char (if is-cur " ┣ " " ┃ "))
-         (sep-face (if is-cur 'sc-bump 'sc-separator))
-         (num    (propertize (format fmt logical-line) 'face 'sc-line-number))
-         (sep    (propertize sep-char 'face sep-face)))
-    (concat num sep)))
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Hooks
+;; ═════════════════════════════════════════════════════════════════════════════
 
-;; ── Refresh ────────────────────────────────────────────────────────────────
+(defun sc--on-post-command ()
+  "Update the cursor-line ┣ overlay after any command.
+Just moves one overlay — no visual line walking, no flicker."
+  (when (and (local-variable-p 'sc--cursor-overlay (current-buffer))
+             (not (minibufferp)))
+    (sc--update)))
 
-(defun sc--refresh (&optional _window _display-lines)
-  "Update status-column overlays for every VISUAL line in the window.
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Minor mode — configures C engine for statuscolumn display
+;; ═════════════════════════════════════════════════════════════════════════════
 
-Each overlay shows \"NN ┃ \" before the text, where NN is the logical
-line number padded to fit the widest line number in the buffer.
+(define-minor-mode sc-mode
+  "Configure the C display engine for statuscolumn rendering.
 
-Uses `vertical-motion' so continuation (wrapped) lines are covered too."
-  ;; Remove all old overlays
-  (mapc #'delete-overlay sc--overlays)
-  (setq sc--overlays nil)
+Sets up `display-line-numbers', `line-prefix', and `wrap-prefix' so
+that every visual line shows ┃ after the line number.  A single overlay
+on the cursor line shows ┣ instead.
 
-  (let* ((cur-pos   (point))
-         (cur-logical (line-number-at-pos cur-pos 'absolute))
-         (w-start   (window-start))
-         (w-end     (max (or (window-end nil t) (point)) (point))))
-    (when (and w-start w-end (> w-end w-start))
-      (catch 'done
-        (save-excursion
-          (goto-char w-start)
-          (while (<= (point) w-end)
-            ;; At EOB with no trailing newline? Skip.
-            (when (and (eobp) (or (bobp) (/= (char-before (point-max)) ?\n)))
-              (throw 'done nil))
+Works in all modes (eat, vterm, GUI, TTY) because everything is handled
+by Emacs' C display engine."
+  :lighter ""
+  :global nil
+  (if sc-mode
+      ;; ── Enable ────────────────────────────────────────────
+      (progn
+        ;; Cache propertized separator strings
+        (setq-local sc--prefix-string (propertize "┃ " 'face 'sc-separator))
+        (setq-local sc--bump-prefix-string (propertize "┣ " 'face 'sc-bump))
 
-            ;; Does this visual line belong to the current logical line?
-            (let* ((logical   (line-number-at-pos (point) 'absolute))
-                   (is-cur    (= logical cur-logical))
-                   (prefix    (sc--build-prefix logical is-cur))
-                   (ov        (make-overlay (point) (point))))
-              (overlay-put ov 'before-string prefix)
-              (overlay-put ov 'sc-p t)
-              (push ov sc--overlays))
+        ;; Turn on display-line-numbers (C engine)
+        (unless (bound-and-true-p display-line-numbers-mode)
+          (display-line-numbers-mode 1))
+        (setq-local display-line-numbers 'visual)
+        (setq-local display-line-numbers-current-absolute t)
+        (setq-local display-line-numbers-grow-only t)
+        (setq-local display-line-numbers-width 5)
 
-            ;; Move to the next VISUAL line
-            (when (eobp) (throw 'done nil))
-            (let ((last-pos (point)))
-              (vertical-motion 1)
-              (when (= (point) last-pos) (throw 'done nil))))
-          )))))
+        ;; Set line-prefix and wrap-prefix (C engine adds ┃ after number)
+        (setq-local line-prefix sc--prefix-string)
+        (setq-local wrap-prefix sc--prefix-string)
 
+        ;; Create cursor-line overlay for ┣
+        (sc--update)
 
-;; ── Activation / Deactivation ─────────────────────────────────────────────
+        ;; Keep cursor overlay in sync
+        (add-hook 'post-command-hook #'sc--on-post-command nil 'local))
 
-(defun sc--activate ()
-  "Enable status-column line numbers in the current buffer.
-Skips buffers whose major mode (or a derived mode) is listed in
-`sc-excluded-modes'."
-  (when (apply #'derived-mode-p sc-excluded-modes)
-    (cl-return-from sc--activate))
-  (sc--refresh)
-  (add-hook 'post-command-hook       #'sc--refresh nil 'local)
-  (add-hook 'window-scroll-functions #'sc--refresh nil 'local)
-  (setq sc--change-fn (lambda (&rest _) (sc--refresh)))
-  (add-hook 'after-change-functions  sc--change-fn nil 'local))
+    ;; ── Disable ────────────────────────────────────────────
+    (progn
+      (remove-hook 'post-command-hook #'sc--on-post-command 'local)
+      (sc--clear)
+      (kill-local-variable 'line-prefix)
+      (kill-local-variable 'wrap-prefix)
+      (kill-local-variable 'display-line-numbers))))
 
-(defun sc--deactivate ()
-  "Remove status-column overlays and hooks from the current buffer."
-  (mapc #'delete-overlay sc--overlays)
-  (setq sc--overlays nil)
-  (remove-hook 'post-command-hook       #'sc--refresh 'local)
-  (remove-hook 'window-scroll-functions #'sc--refresh 'local)
-  (when sc--change-fn
-    (remove-hook 'after-change-functions sc--change-fn 'local)
-    (setq sc--change-fn nil)))
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Global mode — activate in every buffer
+;; ═════════════════════════════════════════════════════════════════════════════
 
-;; ── Global activation ──────────────────────────────────────────────────────
+(define-minor-mode global-sc-mode
+  "Toggle statuscolumn separators in every buffer."
+  :global t
+  :lighter ""
+  (if global-sc-mode
+      (progn
+        (global-sc-mode--enable-all)
+        (add-hook 'after-change-major-mode-hook
+                  #'global-sc-mode--enable-buffer))
+    (global-sc-mode--disable-all)
+    (remove-hook 'after-change-major-mode-hook
+                 #'global-sc-mode--enable-buffer)))
 
-;; Activate in the current buffer immediately
-(sc--activate)
+(defun global-sc-mode--enable-buffer ()
+  "Enable `sc-mode' in current buffer."
+  (when global-sc-mode
+    (sc-mode 1)))
 
-;; Activate in any new buffer that appears in a window
-(add-hook 'window-buffer-change-functions
-          (lambda (_window) (sc--activate)))
+(defun global-sc-mode--enable-all ()
+  "Apply global statuscolumn setup."
+  ;; Clean up any stale diff-hl margin mode
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (bound-and-true-p diff-hl-margin-mode)
+        (diff-hl-margin-mode -1))
+      (setq left-margin-width 0)
+      (when (get-buffer-window buf t)
+        (set-window-margins (get-buffer-window buf t) 0
+                            (cdr (window-margins (get-buffer-window buf t)))))))
+  ;; Set global defaults for C engine
+  (setq-default display-line-numbers-type 'visual
+                display-line-numbers 'visual
+                display-line-numbers-current-absolute t
+                display-line-numbers-grow-only t
+                display-line-numbers-width 5)
+  ;; Enable sc-mode in all buffers
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (sc-mode 1))))
+
+(defun global-sc-mode--disable-all ()
+  "Revert global statuscolumn setup."
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when sc-mode (sc-mode -1)))))
+
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Provide
+;; ═════════════════════════════════════════════════════════════════════════════
 
 (provide 'statuscolumn)
+
 ;; statuscolumn.el ends here

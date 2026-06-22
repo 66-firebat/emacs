@@ -348,15 +348,16 @@
   (setq project-vc-extra-root-markers '(".git" ".project" ".jlpm")))
 
 ;; ---------------------------------------------------------------------------
-;;  13.  Status Column — Visual Line Numbers
+;;  13.  Status Column — Visual Line Numbers with Diff-hl Icons
 ;; ---------------------------------------------------------------------------
 
-;; Load the statuscolumn.el file from the same directory as init.el.
-;; It provides an absolute visual-line-number column with a ┃ separator,
-;; dynamic width, no current-line highlight, and no toggle.
+;; Uses Emacs' built-in C-based line numbering (no flicker, works everywhere)
+;; plus lightweight overlays for the ┃/┣ separator.  See statuscolumn.el.
 (let ((real-dir (file-name-directory
                  (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "statuscolumn.el" real-dir)))
+  (load (expand-file-name "statuscolumn.el" real-dir))
+  ;; Activate the statuscolumn globally — enables C line numbers everywhere
+  (global-sc-mode 1))
 
 ;; ---------------------------------------------------------------------------
 ;;  13b.  Vterm — Terminal Emulator

@@ -19,19 +19,10 @@
 (require 'vterm-autoloads)
 
 ;; ── Terminal width: account for statuscolumn ───────────────────
-;; The statuscolumn adds ~8 chars of before-string ("     1 ┃ ")
-;; before every line.  vterm's width calculation
-;;   width = (window-max-chars-per-line) - (vterm--get-margin-width)
-;; doesn't know about overlay prefixes, but it DOES respect window
-;; margins.  We widen the left margin BEFORE vterm-mode runs so
-;; the terminal is created with the correct width from the start.
-(defun my/vterm--adjust-margins ()
-  (let ((w (+ (sc--num-width) 3)))
-    (setq left-margin-width w)
-    (set-window-margins nil w (cdr (window-margins)))))
-
-(with-eval-after-load 'vterm
-  (advice-add 'vterm-mode :before #'my/vterm--adjust-margins))
+;; The statuscolumn handles terminal buffers (vterm, eat) automatically in
+;; `statuscolumn.el' — it detects terminal modes and uses margins instead of
+;; overlays.  The hook `sc--ensure-terminal-margin-after-mode' is installed
+;; from statuscolumn.el and handles both vterm and eat timing issues.
 
 ;; ── Initial state: normal-by-default ────────────────────────────
 ;; New vterms start in normal state. Press `i` to enter insert mode.
