@@ -405,17 +405,6 @@
 ;; ---------------------------------------------------------------------------
 ;;  13h.  Dirvish — Modern File Manager
 ;; ---------------------------------------------------------------------------
-;; Dirvish enhances Dired with file previews, multiple layouts, VC
-;; integration, and a polished UI. It replaces ranger.
-;; Install: M-x package-install RET dirvish RET
-;;
-;; Keybindings: SPC d d → dirvish,  SPC d s → sidebar,  SPC d f → fd search
-;;
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "dirvish.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
 ;;  13i.  Pi Coding Agent — AI-assisted coding frontend
 ;; ---------------------------------------------------------------------------
 ;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
@@ -429,7 +418,15 @@
   (load (expand-file-name "pi.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  14.  Firebat Theme
+;;  14.  wl-clipboard — Wayland Clipboard
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "wl-clipboard.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
+;;  15.  Firebat Theme
 ;; ---------------------------------------------------------------------------
 
 ;; Load theme.el (defines the firebat theme), then enable it.

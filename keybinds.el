@@ -257,12 +257,8 @@ Sorted numerically."
   "t t" '(my/vterm-new :which-key "new vterm")
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
-  ;; Dirvish
-  "d d" '(my/dirvish :which-key "dirvish")
-  "d s" '(dirvish-side :which-key "dirvish sidebar")
-  "d f" '(dirvish-fd :which-key "dirvish fd search")
-  "d D" '(dirvish-dispatch :which-key "dirvish dispatch")
-  "d q" '(dirvish-quit :which-key "quit dirvish")
+  ;; Dired
+  "d d" '(dired :which-key "dired")
 
   ;; Docs
   "d f" '(describe-function :which-key "describe function")

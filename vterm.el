@@ -18,6 +18,31 @@
 ;; M-x vterm (and SPC t t) appear as available commands.
 (require 'vterm-autoloads)
 
+;; ── Terminal width: account for statuscolumn ───────────────────
+;; vterm calculates terminal width as
+;;   (window-max-chars-per-line) - (vterm--get-margin-width)
+;; vterm--get-margin-width only accounts for display-line-numbers-mode.
+;; The statuscolumn adds ~9 chars of before-string ("     1 ┃ ") on
+;; every line, which also reduces the visible text area.
+;;
+;; We add the advice at top level (no with-eval-after-load) so it
+;; activates BEFORE vterm initialises its terminal width.
+(defun my/vterm--statuscolumn-width ()
+  (+ (if (fboundp 'sc--num-width) (sc--num-width) 5) 4))
+
+(advice-add 'vterm--get-margin-width :filter-return
+            (lambda (width)
+              (+ width (my/vterm--statuscolumn-width))))
+
+;; After vterm-mode activates, force a terminal resize so the
+;; advised margin width takes effect immediately.
+(add-hook 'vterm-mode-hook
+          (lambda ()
+            (when (and (bound-and-true-p vterm--process)
+                       (process-live-p vterm--process))
+              (vterm--window-adjust-process-window-size
+               vterm--process (window-list)))))
+
 ;; ── Initial state: normal-by-default ────────────────────────────
 ;; New vterms start in normal state. Press `i` to enter insert mode.
 (evil-set-initial-state 'vterm-mode 'normal)

@@ -101,7 +101,6 @@ Uses `vertical-motion' so continuation (wrapped) lines are covered too."
                    (ov        (make-overlay (point) (point))))
               (overlay-put ov 'before-string prefix)
               (overlay-put ov 'sc-p t)
-              (overlay-put ov 'priority 100)
               (push ov sc--overlays)
 
             ;; Move to the next VISUAL line

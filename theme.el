@@ -278,10 +278,8 @@ Background: #2b2b2b  Accent: #ff4400")
  `(dired-symlink ((t (:foreground ,firebat-string))))
  `(dired-broken-symlink ((t (:foreground ,firebat-accent))))
  `(dired-ignored ((t (:foreground ,firebat-comment))))
- ;; Dirvish current-line highlight — use main bg color, not the
- ;; dark-orange inherited from `highlight`.
- `(dirvish-hl-line ((t (:background ,firebat-bg :foreground ,firebat-accent :extend t))))
- `(dirvish-hl-line-inactive ((t (:background ,firebat-bg :extend t)))))
+ ;; Dirvish faces removed — dirvish has been uninstalled.
+)
 
 ;; ── Provide ─────────────────────────────────────────────────────
 
