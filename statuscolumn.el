@@ -156,15 +156,9 @@ by Emacs' C display engine."
 
 (defun global-sc-mode--enable-all ()
   "Apply global statuscolumn setup."
-  ;; Clean up any stale diff-hl margin mode
-  (dolist (buf (buffer-list))
-    (with-current-buffer buf
-      (when (bound-and-true-p diff-hl-margin-mode)
-        (diff-hl-margin-mode -1))
-      (setq left-margin-width 0)
-      (when (get-buffer-window buf t)
-        (set-window-margins (get-buffer-window buf t) 0
-                            (cdr (window-margins (get-buffer-window buf t)))))))
+  ;; Ensure the left margin width lets diff-hl display icons.
+  ;; diff-hl-margin-mode sets this to 2 in file buffers; we set
+  ;; a global default for buffers where diff-hl isn't active.
   ;; Set global defaults for C engine
   (setq-default display-line-numbers-type 'visual
                 display-line-numbers 'visual

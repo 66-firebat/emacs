@@ -14,6 +14,9 @@
 ;; =============================================================================
 
 (defun my/eat-adjust-window-size (process windows)
+
+
+
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.

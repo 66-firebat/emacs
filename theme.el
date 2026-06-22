@@ -50,7 +50,7 @@ Background: #2b2b2b  Accent: #ff4400")
 
  `(default ((t (:background ,firebat-bg :foreground ,firebat-fg))))
  `(cursor ((t (:background ,firebat-accent))))
- `(region ((t (:background "#666666" :foreground ,firebat-bg))))
+ `(region ((t (:background "#444444" :foreground ,firebat-fg))))
  `(hl-line ((t (:background ,firebat-hl))))
  `(show-paren-match ((t (:background ,firebat-region :foreground ,firebat-accent :weight bold))))
  `(show-paren-mismatch ((t (:background ,firebat-accent :foreground ,firebat-fg))))
