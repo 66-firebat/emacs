@@ -413,15 +413,7 @@
 
 (let ((real-dir (file-name-directory
                  (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "eat.el" real-dir))
-
-  ;; Open eat terminal on first emacsclient connection (daemon mode)
-  (defvar my/server--eat-opened nil)
-  (add-hook 'server-after-make-frame-hook
-            (lambda ()
-              (unless my/server--eat-opened
-                (setq my/server--eat-opened t)
-                (my/eat-new)))))
+  (load (expand-file-name "eat.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
 ;;  13i.  Pi Coding Agent — AI-assisted coding frontend
