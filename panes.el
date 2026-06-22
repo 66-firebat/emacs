@@ -8,30 +8,27 @@
 ;;  to replace the default "|" character with a custom one.
 ;; =============================================================================
 
-;; ── Vertical border character ───────────────────────────────
-;; In terminal (-nw) mode, Emacs draws vertical window borders
-;; using a single character from the display table. The default
-;; is "|".  We replace it with ┼ (U+253C) for a cleaner look.
+;; ── Continuation glyph (wrapped lines) ─────────────────────
+;; When a line wraps, Emacs shows a glyph at the break point.
+;; Default is \ — replace with · (U+00B7) in a dim face.
 (unless (display-graphic-p)
   (let ((table (or standard-display-table
                    (setq standard-display-table (make-display-table)))))
-    (set-display-table-slot table 'vertical-border (make-glyph-code ?┼)))
+    (set-display-table-slot table 'vertical-border (make-glyph-code ?┼))
+    (set-display-table-slot table 'wrap (make-glyph-code ?· 'shadow)))
 
-  ;; Terminal emulators set their own buffer-local display table (for
-  ;; truncation glyphs), which shadows the standard display table.
-  ;; Re-apply the ┼ border glyph when eat-mode or vterm-mode activates.
-  (add-hook 'eat-mode-hook
-            (lambda ()
-              (when-let ((table (or buffer-display-table
-                                    (setq buffer-display-table (make-display-table)))))
-                (set-display-table-slot table 'vertical-border
-                                        (make-glyph-code ?┼)))))
-  (add-hook 'vterm-mode-hook
-            (lambda ()
-              (when-let ((table (or buffer-display-table
-                                    (setq buffer-display-table (make-display-table)))))
-                (set-display-table-slot table 'vertical-border
-                                        (make-glyph-code ?┼))))))
+  ;; Re-apply to buffer-local display tables (terminal emulators
+  ;; set their own, shadowing the standard display table).
+  (dolist (hook '(eat-mode-hook vterm-mode-hook))
+    (add-hook hook
+              (lambda ()
+                (when-let ((table (or buffer-display-table
+                                      (setq buffer-display-table
+                                            (make-display-table)))))
+                  (set-display-table-slot table 'vertical-border
+                                          (make-glyph-code ?┼))
+                  (set-display-table-slot table 'wrap
+                                          (make-glyph-code ?· 'shadow)))))))
 
 (provide 'panes)
 ;; panes.el ends here
