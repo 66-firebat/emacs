@@ -376,7 +376,15 @@
   (load (expand-file-name "diff-hl.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13d.  Keybinds — All custom keybindings
+;;  13d.  Dired — Dired customizations
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "dired.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
+;;  13e.  Keybinds — All custom keybindings
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory

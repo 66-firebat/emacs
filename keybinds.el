@@ -14,6 +14,13 @@
   "C-h" 'centaur-tabs-backward
   "C-l" 'centaur-tabs-forward)
 
+;; ── Dired from anywhere (all modes) ───────────────────────
+;; C-e opens dired in the eat terminal's current working directory.
+;; Overrides evil-scroll-line-down in normal mode and move-end-of-line
+;; in insert mode.
+(general-def '(normal insert visual motion emacs)
+  "C-e" 'my/dired-from-eat)
+
 ;; ── Quick buffer switch ──────────────────────────────────
 ;; Opens consult-buffer (includes vterm source).
 ;; Replaces evil-scroll-page-up in normal state.
@@ -214,23 +221,27 @@ Sorted numerically."
 ;; ═════════════════════════════════════════════════════════════════
 
 (defun my/dired-from-eat ()
-  "Open dired in the current eat terminal's working directory.
-If the current buffer is an eat terminal, uses its `default-directory'.
-Otherwise, finds the most recently used eat terminal buffer and uses
-its `default-directory'.  Falls back to `default-directory' if no eat
-buffer exists."
+  "Toggle a dired buffer open/closed from the eat terminal's directory.
+
+Outside dired:
+  Opens dired using the eat terminal's current working directory.
+
+Inside dired:
+  Kills the current dired buffer."
   (interactive)
-  (let* ((eat-buf (if (derived-mode-p 'eat-mode)
-                      (current-buffer)
-                    (car (seq-filter
-                          (lambda (b)
-                            (with-current-buffer b
-                              (derived-mode-p 'eat-mode)))
-                          (buffer-list)))))
-         (dir (if eat-buf
-                  (with-current-buffer eat-buf default-directory)
-                default-directory)))
-    (dired dir)))
+  (if (derived-mode-p 'dired-mode)
+      (kill-buffer (current-buffer))
+    (let* ((eat-buf (if (derived-mode-p 'eat-mode)
+                        (current-buffer)
+                      (car (seq-filter
+                            (lambda (b)
+                              (with-current-buffer b
+                                (derived-mode-p 'eat-mode)))
+                            (buffer-list)))))
+           (dir (if eat-buf
+                    (with-current-buffer eat-buf default-directory)
+                  default-directory)))
+      (dired dir))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC leader keybindings
