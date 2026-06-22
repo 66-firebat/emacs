@@ -17,9 +17,15 @@
                    (setq standard-display-table (make-display-table)))))
     (set-display-table-slot table 'vertical-border (make-glyph-code ?┼)))
 
-  ;; vterm sets its own buffer-local display table (for truncation
-  ;; glyphs), which shadows the standard display table.  Re-apply
-  ;; the ┼ border glyph whenever vterm-mode is activated.
+  ;; Terminal emulators set their own buffer-local display table (for
+  ;; truncation glyphs), which shadows the standard display table.
+  ;; Re-apply the ┼ border glyph when eat-mode or vterm-mode activates.
+  (add-hook 'eat-mode-hook
+            (lambda ()
+              (when-let ((table (or buffer-display-table
+                                    (setq buffer-display-table (make-display-table)))))
+                (set-display-table-slot table 'vertical-border
+                                        (make-glyph-code ?┼)))))
   (add-hook 'vterm-mode-hook
             (lambda ()
               (when-let ((table (or buffer-display-table

@@ -7,9 +7,9 @@
 ;;  here.  Loaded eagerly — no `with-eval-after-load'.
 ;; =============================================================================
 
-;; ── VTerm source ───────────────────────────────────────────────
-;; Allows typing a number in SPC b b (consult-buffer) to spawn a
-;; vterm at that index.  Existing vterm buffers appear as candidates.
+;; ── Eat source ────────────────────────────────────────────────
+;; Allows typing a number in SPC b b (consult-buffer) to spawn an
+;; eat terminal at that index.  Existing eat buffers appear as candidates.
 ;;
 ;; IMPORTANT — :default t + prepend
 ;; ---------------------------------
@@ -21,11 +21,11 @@
 ;; :new is called.
 ;;
 ;; Our :new handles both cases:
-;;   "90"         → spawn vterm at index 90
+;;   "90"         → spawn eat terminal at index 90
 ;;   "README.md"  → create a regular buffer (via consult--buffer-action)
 
-(defvar my/consult-vterm-source
-  `(:name     "VTerm"
+(defvar my/consult-eat-source
+  `(:name     "Eat"
     :category buffer
     :default  t                    ;; <-- consult-multi-lookup picks us first
     :face     consult-buffer
@@ -33,22 +33,22 @@
     :state    ,#'consult--buffer-state
     :new      ,(lambda (name)
                  (if (string-match-p "\\`[0-9]+\\'" name)
-                     ;; Numeric → spawn vterm at that index
-                     (let ((buf (my/vterm-spawn-at-index (string-to-number name))))
+                     ;; Numeric → spawn eat at that index
+                     (let ((buf (my/eat-spawn-at-index (string-to-number name))))
                        (when buf
                          (consult--buffer-action buf)))
                    ;; Non-numeric → create a regular buffer (same fallback
                    ;; consult-buffer would normally do)
                    (consult--buffer-action name)))
     :items    ,(lambda ()
-                 (mapcar #'buffer-name (my/vterm-buffer-list))))
-  "Custom consult-buffer source for vterm buffers.
-Allows spawning a new vterm by entering its index.
-Uses `my/vterm-spawn-at-index' and `my/vterm-buffer-list' from keybinds.el.")
+                 (mapcar #'buffer-name (my/eat-buffer-list))))
+  "Custom consult-buffer source for eat terminals.
+Allows spawning a new eat by entering its index.
+Uses `my/eat-spawn-at-index' and `my/eat-buffer-list' from keybinds.el.")
 
 ;; Prepend so our source is found FIRST by `consult--multi-lookup'
 ;; (since both we and consult-source-buffer have :default t).
-(add-to-list 'consult-buffer-sources 'my/consult-vterm-source)
+(add-to-list 'consult-buffer-sources 'my/consult-eat-source)
 
 ;; ── Future consult sources go here ──────────────────────────────
 

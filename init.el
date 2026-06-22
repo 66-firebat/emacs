@@ -360,12 +360,12 @@
   (global-sc-mode 1))
 
 ;; ---------------------------------------------------------------------------
-;;  13b.  Vterm — Terminal Emulator
+;;  13b.  Eat — Terminal Emulator
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
                  (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "vterm.el" real-dir)))
+  (load (expand-file-name "eat.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
 ;;  13c.  Diff-hl — Highlight Uncommitted Changes

@@ -37,16 +37,15 @@
   "gs" 'avy-goto-line)
 
 ;; ═════════════════════════════════════════════════════════════════
-;;  SPC t t — Spawn Vterm
+;;  SPC t t — Spawn Eat Terminal
 ;; ═════════════════════════════════════════════════════════════════
 
-(defvar my-vterm-counter -1
-  "Index of the most recently spawned vterm via SPC t t.
-Used as a hint, but my/vterm-new always picks the lowest free index.")
+(defvar my-eat-index-cache -1
+  "Index of the most recently spawned eat terminal.")
 
-(defun my/vterm-next-available ()
-  "Return the lowest unused vterm index (0, 1, 2, ...).
-Scans all buffer names for \"vterm-<N>\" prefixes."
+(defun my/eat-next-available ()
+  "Return the lowest unused eat index (0, 1, 2, ...).
+Scans all buffer names for \"<N> \" prefixes."
   (let ((i 0))
     (while (let ((target (format "%d " i)))
              (catch 'exists
@@ -56,19 +55,30 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
       (setq i (1+ i)))
     i))
 
-(defun my/vterm-new ()
-  "Spawn a new vterm at the lowest available index."
+(defun my/eat-new ()
+  "Spawn a new eat terminal at the lowest available index.
+Buffer is named like \"0  19950\" (index +  + PID)."
   (interactive)
-  (let ((index (my/vterm-next-available)))
-    (setq my-vterm-counter index)
+  (let ((index (my/eat-next-available))
+        (shell (or explicit-shell-file-name
+                   (getenv "ESHELL")
+                   shell-file-name)))
+    (setq my-eat-index-cache index)
     (let ((buf-name (format "%d  waiting" index)))
-      (vterm buf-name)
-      (with-current-buffer buf-name
-        (when (and (buffer-live-p (current-buffer))
-                   vterm--process
-                   (process-live-p vterm--process))
-          (rename-buffer (format "%d  %d" index
-                                  (process-id vterm--process))))))))
+      (with-current-buffer (get-buffer-create buf-name)
+        (eat-mode)
+        (pop-to-buffer-same-window (current-buffer))
+        ;; Start the terminal process (if not already running)
+        (unless (and eat-terminal
+                     (eat-term-parameter eat-terminal 'eat--process))
+          (eat-exec (current-buffer) (buffer-name)
+                    "/usr/bin/env" nil
+                    (list "sh" "-c" shell)))
+        ;; Rename buffer to include the PID
+        (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
+                    ((process-live-p proc)))
+          (rename-buffer (format "%d  %d" index (process-id proc))))
+        (current-buffer)))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC b r — Previous Buffer
@@ -89,7 +99,7 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
 (defvar my/excluded-buffer-names '("*scratch*" "*Messages*")
   "Buffer names excluded from SPC b # navigation.")
 
-(defvar my/excluded-buffer-modes '(vterm-mode)
+(defvar my/excluded-buffer-modes '()
   "Major modes excluded from SPC b # navigation.")
 
 (defun my/filtered-buffer-list ()
@@ -112,66 +122,74 @@ Scans all buffer names for \"vterm-<N>\" prefixes."
             (my/filtered-buffer-list))))
 
 ;; ═════════════════════════════════════════════════════════════════
-;;  SPC v 0-9 — Jump to / spawn vterm by index
+;;  SPC e 0-9 — Jump to / spawn eat terminal by index
 ;; ═════════════════════════════════════════════════════════════════
 
-(defun my/vterm-buffer-list ()
-  "Return all vterm-mode buffers."
+(defun my/eat-buffer-list ()
+  "Return all eat-mode buffers."
   (seq-filter (lambda (b)
-                (with-current-buffer b (derived-mode-p 'vterm-mode)))
+                (with-current-buffer b (derived-mode-p 'eat-mode)))
               (buffer-list)))
 
-(defun my/vterm-index-strings ()
-  "Return index strings like \"7\" for all existing vterm buffers.
+(defun my/eat-index-strings ()
+  "Return index strings like \"7\" for all existing eat buffers.
 Sorted numerically."
   (let ((indices (delq nil
                        (mapcar (lambda (b)
-                                 (let ((n (buffer-name b)))
-                                   (when (string-match "\\`\\([0-9]+\\) " n)
-                                                     (buffer-name b))
+                                 (when (string-match
+                                        "\\`\\([0-9]+\\) "
+                                        (buffer-name b))
                                    (match-string 1 (buffer-name b))))
-                               (my/vterm-buffer-list)))))
+                               (my/eat-buffer-list)))))
     (mapcar #'number-to-string
             (sort (mapcar #'string-to-number indices) #'<))))
 
-(defun my/vterm-spawn-at-index (index)
-  "Create a new vterm buffer with the given INDEX and return it."
-  (let* ((buf-name (format "%d  waiting" index))
-         (buf (vterm buf-name)))
-    (with-current-buffer buf
-      (when (and vterm--process (process-live-p vterm--process))
-        (rename-buffer (format "%d  %d" index
-                                (process-id vterm--process)))))
-    buf))
+(defun my/eat-spawn-at-index (index)
+  "Create a new eat buffer with the given INDEX and return it."
+  (let ((buf-name (format "%d  waiting" index))
+        (shell (or explicit-shell-file-name
+                   (getenv "ESHELL")
+                   shell-file-name)))
+    (with-current-buffer (get-buffer-create buf-name)
+      (eat-mode)
+      (unless (and eat-terminal
+                   (eat-term-parameter eat-terminal 'eat--process))
+        (eat-exec (current-buffer) (buffer-name)
+                  "/usr/bin/env" nil
+                  (list "sh" "-c" shell)))
+      (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
+                  ((process-live-p proc)))
+        (rename-buffer (format "%d  %d" index (process-id proc))))
+      (current-buffer))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  Goto functions — called by digit keybindings below
 ;; ═════════════════════════════════════════════════════════════════
 
-(defun my/vterm-goto ()
-  "Jump to or spawn a vterm by index.  Pressed digit seeds the search."
+(defun my/eat-goto ()
+  "Jump to or spawn an eat terminal by index.  Digit seeds the search."
   (interactive)
   (let* ((keys (this-single-command-keys))
          (key (aref keys (1- (length keys))))
          (initial (char-to-string key))
-         (candidates (my/vterm-index-strings))
-         (input (completing-read "vterm: " candidates nil nil initial)))
+         (candidates (my/eat-index-strings))
+         (input (completing-read "eat: " candidates nil nil initial)))
     (if (string= input "")
         (message "Cancelled")
       (let ((index (string-to-number input)))
         (if (member input candidates)
-            (let ((buf (my/vterm-buffer-by-index index)))
+            (let ((buf (my/eat-buffer-by-index index)))
               (if buf (switch-to-buffer buf)
-                (my/vterm-spawn-at-index index)))
-          (my/vterm-spawn-at-index index)
-          (message "Spawned vterm %d" index))))))
+                (my/eat-spawn-at-index index)))
+          (my/eat-spawn-at-index index)
+          (message "Spawned eat %d" index))))))
 
-(defun my/vterm-buffer-by-index (index)
-  "Return the vterm buffer with the given INDEX, or nil."
+(defun my/eat-buffer-by-index (index)
+  "Return the eat buffer with the given INDEX, or nil."
   (car (seq-filter
         (lambda (b)
           (string-match-p (format "\\`%d " index) (buffer-name b)))
-        (my/vterm-buffer-list))))
+        (my/eat-buffer-list))))
 
 (defun my/buffer-goto ()
   "Jump to a non-excluded buffer by index.  Pressed digit seeds the search."
@@ -254,7 +272,7 @@ Sorted numerically."
   ;; Toggle
   "t l" '(display-line-numbers-mode :which-key "toggle line numbers")
   "t w" '(whitespace-mode :which-key "toggle whitespace")
-  "t t" '(my/vterm-new :which-key "new vterm")
+  "t t" '(my/eat-new :which-key "new eat")
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
   ;; Dired
@@ -296,12 +314,7 @@ Sorted numerically."
   (general-def 'normal pi-coding-agent-chat-mode-map
     "q" 'pi-coding-agent-quit))
 
-;; ── Auto-insert when switching to vterm ──────────────────────────
-;; These three commands are the main buffer-switching paths that can
-;; land on a vterm buffer in the same window.  The advice checks
-;; after each command and enters insert mode if needed.
-(dolist (cmd '(my/switch-to-other-buffer))
-  (advice-add cmd :after #'my/vterm-enter-insert-after-switch))
+
 
 (provide 'keybinds)
 ;; keybinds.el ends here
