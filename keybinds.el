@@ -80,30 +80,6 @@ Buffer is named like \"0  19950\" (index +  + PID)."
           (rename-buffer (format "%d  %d" index (process-id proc))))
         (current-buffer)))))
 
-(defun my/eat-new-headless ()
-  "Create a new eat buffer in the daemon without displaying it.
-Used by `emacsclient -e' to pre-create an eat terminal before
-`emacsclient -nw' connects a TTY frame."
-  (let ((index (my/eat-next-available))
-        (shell (or explicit-shell-file-name
-                   (getenv "ESHELL")
-                   shell-file-name)))
-    (setq my-eat-index-cache index)
-    (let ((buf-name (format "%d  waiting" index)))
-      (with-current-buffer (get-buffer-create buf-name)
-        (eat-mode)
-        ;; Start the terminal process (if not already running)
-        (unless (and eat-terminal
-                     (eat-term-parameter eat-terminal 'eat--process))
-          (eat-exec (current-buffer) (buffer-name)
-                    "/usr/bin/env" nil
-                    (list "sh" "-c" shell)))
-        ;; Rename buffer to include the PID
-        (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
-                    ((process-live-p proc)))
-          (rename-buffer (format "%d  %d" index (process-id proc))))
-        (current-buffer)))))
-
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC b r — Previous Buffer
 ;; ═════════════════════════════════════════════════════════════════
