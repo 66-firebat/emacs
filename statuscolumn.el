@@ -33,19 +33,18 @@
                 (cl-incf i) (cons s p)))
             positions)))
 
-(defun sc--num-str (pos)
-  (let ((n (number-to-string (line-number-at-pos pos t))))
-    (when (< (length n) 2) (setq n (concat " " n)))
-    (concat (propertize n 'face 'sc-current-face)
-            (propertize " ┣ " 'face 'sc-bump))))
+(defun sc--current-str ()
+  "Prefix for current line:  ┣"
+  (concat (propertize "  " 'face 'sc-current-face)
+          (propertize " ┣ " 'face 'sc-bump)))
 
 (defun sc--lab-str (label)
-  (concat (propertize label 'face 'sc-label-face)
+  (concat (propertize (concat " " label) 'face 'sc-label-face)
           (propertize " ┃ " 'face 'sc-sep)))
 
 (defun sc--sep-str ()
-  "Just the separator — used as buffer-local fallback for continuation lines."
-  (propertize " ┃ " 'face 'sc-sep))
+  "Just the separator, padded — used as buffer-local fallback for continuations."
+  (propertize "    ┃ " 'face 'sc-sep))
 
 (defun sc--make-ov (pos)
   (let ((end (min (+ pos 2) (point-max))))
@@ -92,7 +91,7 @@
               (let ((ov (sc--make-ov pos)))
                 (if (= pos cur)
                     ;; Cursor line: show NUMBER ┣
-                    (overlay-put ov 'line-prefix (sc--num-str pos))
+                    (overlay-put ov 'line-prefix (sc--current-str))
                   ;; Non-cursor line: show LABEL ┃
                   (overlay-put ov 'line-prefix (sc--lab-str lab)))
                 (push ov new-ovs))))
