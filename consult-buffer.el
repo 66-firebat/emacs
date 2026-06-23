@@ -7,6 +7,22 @@
 ;;  here.  Loaded eagerly — no `with-eval-after-load'.
 ;; =============================================================================
 
+;; ── Previous buffer source ─────────────────────────────────────
+;; Shows the most recently selected buffer (the one you'd get by
+;; calling `mode-line-other-buffer') as a single candidate at the
+;; very top of consult-buffer.  Makes it easy to quickly jump back.
+
+(defvar my/consult-source-previous
+  `(:name     "Previous"
+    :category buffer
+    :face     consult-buffer
+    :state    ,#'consult--buffer-state
+    :items    ,(lambda ()
+                 (when-let ((buf (other-buffer)))
+                   (list (buffer-name buf)))))
+  "Consult source showing the most recently selected buffer.
+Appears as a single-candidate \"Previous\" section at the top.")
+
 ;; ── Eat source ────────────────────────────────────────────────
 ;; Allows typing a number in SPC b b (consult-buffer) to spawn an
 ;; eat terminal at that index.  Existing eat buffers appear as candidates.
@@ -83,6 +99,10 @@ These are shown separately in the \"Eat\" section from
                     'my/consult-source-buffer-no-eat
                   s))
               consult-buffer-sources))
+
+;; Prepend Previous so it appears at the VERY top
+;; (must be after the other add-to-list calls since add-to-list prepends)
+(add-to-list 'consult-buffer-sources 'my/consult-source-previous)
 
 
 (provide 'consult-buffer)
