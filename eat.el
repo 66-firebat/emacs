@@ -3,24 +3,25 @@
 ;; =============================================================================
 ;;  eat.el — Terminal Emulator Configuration
 ;;
-;;  Accounts for the statuscolumn width (line numbers + ┃ separator) when
+;;  Accounts for the statuscolumn's letter label + separator width when
 ;;  calculating the terminal width, preventing content overflow.
 ;;
-;;  The key variable is `window-adjust-process-window-size-function'.
-;;  Eat calls this to get (WIDTH . HEIGHT) for the terminal.  The default
-;;  uses `window-max-chars-per-line' which accounts for `display-line-numbers'
-;;  but NOT for `line-prefix' (our ┃ separator).  We override it to subtract
-;;  the prefix width (2 chars: space + ┃).
+;;  The statuscolumn adds 6 chars per line via `line-prefix' overlays:
+;;    " a  ┃ " = 6 chars (space + label + 2 spaces + separator + space)
+;;
+;;  `window-max-chars-per-line' accounts for fringes, scrollbars, and
+;;  margins (left-margin-width) but NOT for `line-prefix' overlays.
+;;  We subtract 6 to compensate.
 ;; =============================================================================
 
 (defun my/eat-adjust-window-size (process windows)
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.
-Subtracts 2 from the available width for the `line-prefix' separator."
+Subtracts 6 for the letter label + separator prefix."
   (let ((window (car windows)))
     (when (window-live-p window)
-      (cons (max (- (window-max-chars-per-line window) 2) 10)
+      (cons (max (- (window-max-chars-per-line window) 6) 10)
             (window-text-height window)))))
 
 (use-package eat
@@ -40,10 +41,6 @@ Subtracts 2 from the available width for the `line-prefix' separator."
   ;; `my/dired-from-eat' uses this to open dired in the eat terminal's
   ;; current directory.
 
-  ;; Override terminal width calculation to account for the statuscolumn
-  ;; `line-prefix' (2 chars).  This must be set buffer-locally in each eat
-  ;; buffer via `eat-mode-hook'.  See `window-adjust-process-window-size-
-  ;; function' in the Emacs Lisp manual for details.
   (add-hook 'eat-mode-hook
             (lambda ()
               (setq-local window-adjust-process-window-size-function
