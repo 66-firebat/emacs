@@ -147,24 +147,13 @@
     (setq sc--refresh-timer nil)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  After-change — also rebuild immediately
+;;  After-change — timer already handles this, so just ensure tick is tracked
 ;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc--on-after-change (&rest _)
-  "Rebuild immediately when buffer changes."
+  "Mark buffer as changed so post-command can detect it."
   (when sc-mode
-    (sc--rebuild)))
-
-;; ═════════════════════════════════════════════════════════════════════════════
-;;  Scroll — rebuild again with correct post-redisplay geometry
-;; ═════════════════════════════════════════════════════════════════════════════
-
-(defun sc--on-scroll (win _start)
-  "Rebuild when window scrolls — geometry is fresh after redisplay."
-  (let ((buf (window-buffer win)))
-    (when (buffer-live-p buf)
-      (with-current-buffer buf
-        (when sc-mode (sc--rebuild))))))
+    (setq sc--last-tick nil)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Jump command
@@ -208,11 +197,9 @@
           (setq sc--last-tick (buffer-chars-modified-tick)))
         (add-hook 'post-command-hook #'sc--on-post-command nil 'local)
         (add-hook 'after-change-functions #'sc--on-after-change nil 'local)
-        (add-hook 'window-scroll-functions #'sc--on-scroll)
         (sc--start-refresh-timer))
     (remove-hook 'post-command-hook #'sc--on-post-command 'local)
     (remove-hook 'after-change-functions #'sc--on-after-change 'local)
-    (remove-hook 'window-scroll-functions #'sc--on-scroll)
     (sc--stop-refresh-timer)
     (mapc #'delete-overlay sc--ovs)
     (setq sc--ovs nil sc--pairs nil)
