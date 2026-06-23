@@ -14,9 +14,6 @@
 ;; =============================================================================
 
 (defun my/eat-adjust-window-size (process windows)
-
-
-
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.
@@ -40,8 +37,8 @@ Subtracts 2 from the available width for the `line-prefix' separator."
   ;;     source "$EAT_SHELL_INTEGRATION_DIR/bash"
   ;;
   ;; Once set up, `default-directory' in eat buffers tracks `cd' commands.
-  ;; `my/dired-from-eat' (SPC d d) uses this to open dired in the eat
-  ;; terminal's current directory.
+  ;; `my/dired-from-eat' uses this to open dired in the eat terminal's
+  ;; current directory.
 
   ;; Override terminal width calculation to account for the statuscolumn
   ;; `line-prefix' (2 chars).  This must be set buffer-locally in each eat
@@ -53,3 +50,5 @@ Subtracts 2 from the available width for the `line-prefix' separator."
                           #'my/eat-adjust-window-size))))
 
 (provide 'eat)
+
+;; eat.el ends here

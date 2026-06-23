@@ -144,14 +144,16 @@ Also defines normal-mode overrides for tab navigation, buffer switching, line mo
 - `my/eat-spawn-at-index` — spawn Eat at a specific index
 - `my/filtered-buffer-list` — buffer list excluding `*scratch*` and `*Messages*`
 
-### `statuscolumn.el` — Visual Line Numbers
+### `statuscolumn.el` — Permanent Avy Jump Labels
 
-Uses Emacs' C display engine (`display-line-numbers` + `line-prefix` + `wrap-prefix`) for zero-flicker line numbering with a visual separator:
+Every visible line shows an avy-style jump label in the statuscolumn.
+The current line displays the absolute line number instead:
 
-- Most lines: `  NN ┃`
-- Current line: `  NN ┣`
+- Non-current lines: `LABEL ┃`
+- Current line:       `LINENUMBER ┣`
 
-A single overlay on the cursor line handles the `┣` bump. Everything else is handled by the C engine. Works in ALL modes including Eat, GUI, and TTY.
+Pressing `;` types the label to jump — no temporary overlays. Terminal
+buffers (eat/vterm) are excluded for performance.
 
 ### `doom-modeline.el` — Custom Modeline Segments
 
