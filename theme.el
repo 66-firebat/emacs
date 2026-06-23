@@ -238,9 +238,10 @@ Background: #2b2b2b  Accent: #ff4400")
  ;;  Avy
  ;; ═══════════════════════════════════════════════════════════════
 
- `(avy-lead-face ((t (:background ,firebat-accent :foreground ,firebat-fg :weight bold))))
- `(avy-lead-face-0 ((t (:background ,firebat-accent-alt :foreground ,firebat-fg))))
- `(avy-lead-face-1 ((t (:background ,firebat-string :foreground ,firebat-fg))))
+ `(avy-lead-face ((t (:foreground "#ff4400" :background "#2b2b2b" :weight bold))))
+ `(avy-lead-face-0 ((t (:foreground "#ff4400" :background "#2b2b2b"))))
+ `(avy-lead-face-1 ((t (:foreground "#ff4400" :background "#2b2b2b"))))
+ `(avy-lead-face-2 ((t (:foreground "#ff4400" :background "#2b2b2b"))))
  `(avy-background-face ((t (:foreground ,firebat-comment))))
 
  ;; ═══════════════════════════════════════════════════════════════

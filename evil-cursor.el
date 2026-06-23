@@ -27,8 +27,8 @@
 ;; ── State → (color . shape) map ────────────────────────────────
 
 (defvar my/evil-cursor-styles
-  '((normal . (nil       . nil))
-    (insert . ("#ff4400" . underline))
+  '((normal . (nil       . underline))
+    (insert . ("#ff4400" . bar))
     (visual . ("#ff4400" . nil)))
   "Cursor (COLOR . SHAPE) per evil state.
 

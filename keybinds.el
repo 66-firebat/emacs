@@ -35,12 +35,13 @@
   "H" 'evil-first-non-blank)
 
 ;; ── Avy — jump to any visible character ────────────────────────
-;; s + one char  → jump to word starting with that char
+;; f + two chars → jump to that exact character pair
 ;; S + two chars → jump to that exact character pair
 ;; g s           → jump to a visible line number
-(general-def 'normal
-  "s" 'avy-goto-word-1
+(general-def '(normal visual visual-block visual-line)
+  "f" 'avy-goto-char-2
   "S" 'avy-goto-char-2
+  ";" 'avy-goto-line
   "gs" 'avy-goto-line)
 
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
