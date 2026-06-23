@@ -50,7 +50,40 @@ Uses `my/eat-spawn-at-index' and `my/eat-buffer-list' from keybinds.el.")
 ;; (since both we and consult-source-buffer have :default t).
 (add-to-list 'consult-buffer-sources 'my/consult-eat-source)
 
-;; ── Future consult sources go here ──────────────────────────────
+;; ── Filter eat buffers from the default "Buffer" section ──────
+;; Without this, eat buffers ("0  8660", etc.) appear in BOTH the
+;; "Eat" section (from my/consult-eat-source) AND the default "Buffer"
+;; section (from consult-source-buffer).  We replace consult-source-buffer
+;; with a copy that adds a :predicate to exclude eat-mode buffers.
+
+(defvar my/consult-source-buffer-no-eat
+  `( :name     "Buffer"
+     :narrow   ?b
+     :category buffer
+     :face     consult-buffer
+     :history  buffer-name-history
+     :state    ,#'consult--buffer-state
+     :default  t
+     :items
+     ,(lambda ()
+        (consult--buffer-query :sort 'visibility
+                               :as #'consult--buffer-pair
+                               :predicate (lambda (b)
+                                            (not (with-current-buffer b
+                                                   (derived-mode-p 'eat-mode)))))))
+  "Like `consult-source-buffer' but excludes eat-mode buffers.
+
+These are shown separately in the \"Eat\" section from
+`my/consult-eat-source'.")
+
+;; Swap it into the sources list in place of the original.
+(setq consult-buffer-sources
+      (mapcar (lambda (s)
+                (if (eq s 'consult-source-buffer)
+                    'my/consult-source-buffer-no-eat
+                  s))
+              consult-buffer-sources))
+
 
 (provide 'consult-buffer)
 ;; consult-buffer.el ends here
