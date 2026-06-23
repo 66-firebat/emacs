@@ -384,7 +384,15 @@
   (load (expand-file-name "dired.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13e.  Keybinds — All custom keybindings
+;;  13e.  Embark — Context-aware actions
+;; ---------------------------------------------------------------------------
+
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "embark.el" real-dir)))
+
+;; ---------------------------------------------------------------------------
+;;  13f.  Keybinds — All custom keybindings
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -392,7 +400,7 @@
   (load (expand-file-name "keybinds.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13f.  Consult — Custom buffer sources
+;;  13g.  Consult — Custom buffer sources
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -400,7 +408,7 @@
   (load (expand-file-name "consult-buffer.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13g.  Panes — Window Dividers
+;;  13h.  Panes — Window Dividers
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -408,7 +416,7 @@
   (load (expand-file-name "panes.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13h.  Centaur Tabs — Aesthetic Tab Bar
+;;  13i.  Centaur Tabs — Aesthetic Tab Bar
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -416,7 +424,7 @@
   (load (expand-file-name "centaur-tabs.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13i.  Eat — Terminal Emulator
+;;  13j.  Eat — Terminal Emulator
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -424,7 +432,7 @@
   (load (expand-file-name "eat.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13j.  Pi Coding Agent — AI-assisted coding frontend
+;;  13k.  Pi Coding Agent — AI-assisted coding frontend
 ;; ---------------------------------------------------------------------------
 ;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
 ;; with a Markdown chat buffer and a separate prompt composition buffer.
