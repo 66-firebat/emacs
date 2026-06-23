@@ -70,6 +70,7 @@
   ;; Buffer-local line-prefix: just separator.  Shows on continuation lines
   ;; and as fallback for any line without an overlay.
   (setq-local line-prefix (sc--sep-str))
+  (setq-local wrap-prefix (sc--sep-str))
   (let* ((win (get-buffer-window (current-buffer)))
          (cur (line-beginning-position))
          positions pairs new-ovs)
@@ -197,6 +198,7 @@ Uses a short idle timer so rapid changes (lsblk, etc.) are batched."
     (setq sc--ovs nil sc--pairs nil)
     (sc--cancel-change-timer)
     (kill-local-variable 'line-prefix)
+    (kill-local-variable 'wrap-prefix)
     (kill-local-variable 'display-line-numbers)
     (kill-local-variable 'left-margin-width)
     (when-let ((win (get-buffer-window (current-buffer))))
