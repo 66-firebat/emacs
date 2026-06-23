@@ -52,8 +52,8 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
      (t             "󰪤"))))
 
 (defun sc--current-str ()
-  "Prefix for current line: slice icon ┣"
-  (let ((icon (sc--slice-icon)))
+  "Prefix for current line: slice icon ┣, or 󰠠 when ; jump is active."
+  (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
     (concat (propertize (concat " " icon " ") 'face 'sc-current-face)
             (propertize " ┣ " 'face 'sc-bump))))
 
@@ -148,6 +148,9 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
 (defvar-local sc--refresh-timer nil
   "Repeating idle timer that periodically refreshes labels.")
 
+(defvar-local sc--jump-active nil
+  "Non-nil while ; jump is active — replaces slice icon with 󰠠.")
+
 (defun sc--start-refresh-timer ()
   "Start a repeating idle timer to keep labels current."
   (unless sc--refresh-timer
@@ -180,25 +183,29 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
 
 (defun sc-avy-goto-line ()
   (interactive)
-  (sc--rebuild)
-  (let* ((candidates (copy-sequence sc--pairs)) (input ""))
-    (when (null candidates) (user-error "No visible lines"))
-    (while (cdr candidates)
-      (condition-case nil
-          (let* ((prompt (propertize (format "󰠠 %s" input) 'face 'sc-current-face))
-                 (char (read-key prompt)))
-            (cond ((= char ?\e) (user-error "Quit"))
-                  ((= char ?\C-g) (keyboard-quit))
-                  (t (setq input (concat input (string char)))
-                     (setq candidates
-                           (cl-remove-if-not
-                            (lambda (c)
-                              (string-prefix-p input (string-trim (car c)) t))
-                            candidates))
-                     (when (null candidates) (user-error "No match")))))
-        (quit () (user-error "Quit"))))
-    (when candidates
-      (let ((target (cdar candidates))) (push-mark) (goto-char target)))))
+  (setq sc--jump-active t)
+  (unwind-protect
+      (progn
+        (sc--rebuild)
+        (let* ((candidates (copy-sequence sc--pairs)) (input ""))
+          (when (null candidates) (user-error "No visible lines"))
+          (while (cdr candidates)
+            (condition-case nil
+                (let ((char (read-key input)))
+                  (cond ((= char ?\e) (user-error "Quit"))
+                        ((= char ?\C-g) (keyboard-quit))
+                        (t (setq input (concat input (string char)))
+                           (setq candidates
+                                 (cl-remove-if-not
+                                  (lambda (c)
+                                    (string-prefix-p input (string-trim (car c)) t))
+                                  candidates))
+                           (when (null candidates) (user-error "No match")))))
+              (quit () (user-error "Quit"))))
+          (when candidates
+            (let ((target (cdar candidates))) (push-mark) (goto-char target)))))
+    (setq sc--jump-active nil)
+    (sc--rebuild)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  sc-mode
