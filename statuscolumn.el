@@ -113,6 +113,33 @@
         (setq sc--last-tick tick)))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
+;;  Buffer changes (process output) — debounced idle rebuild
+;; ═════════════════════════════════════════════════════════════════════════════
+
+(defvar-local sc--change-timer nil
+  "Idle timer for debouncing after-change rebuilds.")
+
+(defun sc--on-after-change (&rest _)
+  "Schedule a rebuild after terminal output settles.
+Uses a short idle timer so rapid changes (lsblk, etc.) are batched."
+  (when (and sc-mode (not sc--change-timer))
+    (setq sc--change-timer
+          (run-with-idle-timer 0.1 nil
+            (lambda (buf)
+              (when (buffer-live-p buf)
+                (with-current-buffer buf
+                  (setq sc--change-timer nil)
+                  (setq sc--last-tick nil)
+                  (when sc-mode (sc--rebuild)))))
+            (current-buffer)))))
+
+(defun sc--cancel-change-timer ()
+  "Cancel the debounce timer."
+  (when sc--change-timer
+    (cancel-timer sc--change-timer)
+    (setq sc--change-timer nil)))
+
+;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Scroll
 ;; ═════════════════════════════════════════════════════════════════════════════
 
@@ -161,11 +188,14 @@
           (sc--rebuild)
           (setq sc--last-tick (buffer-chars-modified-tick)))
         (add-hook 'post-command-hook #'sc--on-post-command nil 'local)
+        (add-hook 'after-change-functions #'sc--on-after-change nil 'local)
         (add-hook 'window-scroll-functions #'sc--on-scroll nil 'local))
     (remove-hook 'post-command-hook #'sc--on-post-command 'local)
+    (remove-hook 'after-change-functions #'sc--on-after-change 'local)
     (remove-hook 'window-scroll-functions #'sc--on-scroll 'local)
     (mapc #'delete-overlay sc--ovs)
     (setq sc--ovs nil sc--pairs nil)
+    (sc--cancel-change-timer)
     (kill-local-variable 'line-prefix)
     (kill-local-variable 'display-line-numbers)
     (kill-local-variable 'left-margin-width)
