@@ -43,6 +43,14 @@
   "S" 'avy-goto-char-2
   "gs" 'avy-goto-line)
 
+;; ── C-i / TAB jump forward ─────────────────────────────────────
+;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
+;; The kkp package (init.el) decodes C-i as [C-i] terminal-side; we
+;; bind it here explicitly for normal and visual states.
+(define-key evil-normal-state-map [C-i] 'evil-jump-forward)
+(define-key evil-visual-state-map [C-i] 'evil-jump-forward)
+
+
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC t t — Spawn Eat Terminal
 ;; ═════════════════════════════════════════════════════════════════

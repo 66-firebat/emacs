@@ -114,7 +114,7 @@
   (setq evil-want-keybinding nil)
 
   ;; Vim-like behaviour tweaks
-  (setq evil-want-C-i-jump nil)        ;; Keep TAB as normal (not C-i)
+  (setq evil-want-C-i-jump t)         ;; C-i / TAB forward in jump list
   (setq evil-want-Y-yank-to-eol t)     ;; Y yanks to end of line (like Vim)
   (setq evil-want-fine-undo t)         ;; Granular undo per insertion
   (setq evil-move-beyond-eol t)        ;; Like Vim's virtualedit=all
@@ -152,6 +152,17 @@
   (load (expand-file-name "evil-cursor.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
+;;  3c.  Kitty Keyboard Protocol — Proper key encoding in terminal
+;; ---------------------------------------------------------------------------
+
+;; The kkp package decodes CSI-u escape sequences (used by Ghostty, kitty,
+;; WezTerm, etc.) into proper Emacs key events.  This makes keys like C-i
+;; distinguishable from TAB, among many others.
+(use-package kkp
+  :ensure t
+  :demand t
+  :config
+  (global-kkp-mode 1))
 ;;  4.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 
