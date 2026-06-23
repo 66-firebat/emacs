@@ -27,9 +27,9 @@
 ;; ── State → (color . shape) map ────────────────────────────────
 
 (defvar my/evil-cursor-styles
-  '((normal . (nil       . nil))       ;; (reset color  . reset shape)
-    (insert . ("#ff4400" . bar))       ;; (#ff4400       . vertical line)
-    (visual . ("#ff4400" . underline))) ;; (#ff4400       . horizontal bar)
+  '((normal . (nil       . nil))
+    (insert . ("#ff4400" . underline))
+    (visual . ("#ff4400" . nil)))
   "Cursor (COLOR . SHAPE) per evil state.
 
 COLOR is an X11 color string for OSC 12, or nil to reset to default.
