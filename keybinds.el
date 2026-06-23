@@ -41,8 +41,8 @@
 (general-def '(normal visual visual-block visual-line)
   "f" 'avy-goto-char-2
   "S" 'avy-goto-char-2
-  ";" 'avy-goto-line
-  "gs" 'avy-goto-line)
+  ";" 'sc-avy-goto-line
+  "gs" 'sc-avy-goto-line)
 
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
 ;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
