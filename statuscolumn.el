@@ -33,10 +33,29 @@
                 (cl-incf i) (cons s p)))
             positions)))
 
+(defun sc--slice-icon ()
+  "Return a Nerd Font scrollbar-thumb icon based on point's position.
+Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
+  (let* ((total (max 1 (1- (point-max))))
+         (pct (/ (float (1- (point))) total))
+         (band (floor (* 8 pct))))
+    (cond
+     ((>= pct 1.0)  "󰪥")      ;; 100%%
+     ((= band 0)    "󰰗")      ;;   0%% – 12.5%%
+     ((= band 1)    "󰪞")      ;;  12.5%% – 25%%
+     ((= band 2)    "󰪟")      ;;  25%% – 37.5%%
+     ((= band 3)    "󰪠")      ;;  37.5%% – 50%%
+     ((= band 4)    "󰪡")      ;;  50%% – 62.5%%
+     ((= band 5)    "󰪢")      ;;  62.5%% – 75%%
+     ((= band 6)    "󰪣")      ;;  75%% – 87.5%%
+     ((= band 7)    "󰪤")      ;;  87.5%% – 100%% (exclusive)
+     (t             "󰪤"))))
+
 (defun sc--current-str ()
-  "Prefix for current line:  ┣"
-  (concat (propertize "  " 'face 'sc-current-face)
-          (propertize " ┣ " 'face 'sc-bump)))
+  "Prefix for current line: slice icon ┣"
+  (let ((icon (sc--slice-icon)))
+    (concat (propertize (concat " " icon " ") 'face 'sc-current-face)
+            (propertize " ┣ " 'face 'sc-bump))))
 
 (defun sc--lab-str (label)
   (concat (propertize (concat " " label) 'face 'sc-label-face)
