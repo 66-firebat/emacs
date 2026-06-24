@@ -233,6 +233,16 @@
   :config
   (marginalia-mode 1))
 
+;; ---------------------------------------------------------------------------
+;;  Orderless — Flexible completion style
+;; ---------------------------------------------------------------------------
+
+;; Orderless splits the input on spaces and matches each component
+;; independently, enabling flexible filtering like "fo ba" → "foobar".
+(let ((real-dir (file-name-directory
+                 (file-truename (or load-file-name buffer-file-name)))))
+  (load (expand-file-name "orderless.el" real-dir)))
+
 ;; Consult provides powerful search and navigation commands that
 ;; integrate with Vertico: consult-line, consult-grep, consult-buffer, etc.
 (use-package consult

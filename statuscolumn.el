@@ -312,15 +312,20 @@ Fires during redisplay, right after window-start changes."
             (when candidates
               (let ((target (cdar candidates)))
                 (when (fboundp 'evil-set-jump) (evil-set-jump))
-                ;; In Evil visual state: keep the selection alive by telling
-                ;; `evil-visual-post-command' to REFRESH (not contract) the
-                ;; region.  We set `evil-visual-region-expanded' back to nil
-                ;; so the post-command calls `evil-visual-refresh' instead of
-                ;; `evil-visual-contract-region', extending the selection
-                ;; from the anchor (mark) to the new point position.
-                ;; Skip `push-mark' to avoid moving the anchor.
-                (if in-visual
-                    (setq evil-visual-region-expanded nil)
+                ;; :keep-visual prevents `evil-visual-pre-command' from
+                ;; expanding the region (which moves point to the far end
+                ;; of the selection — the cursor-jump the user sees).
+                ;; Instead we set the Emacs mark to the visual anchor
+                ;; manually, then `goto-char' moves point to target.
+                ;; `evil-visual-post-command' sees expanded is nil, calls
+                ;; `evil-visual-refresh', and extends the selection from
+                ;; the anchor to point — keeping us in visual mode.
+                (when in-visual
+                  (set-marker (mark-marker)
+                              (or (and (boundp 'evil-visual-mark)
+                                       (marker-position evil-visual-mark))
+                                  (point))))
+                (unless in-visual
                   (push-mark))
                 (goto-char target)))))
       (setq sc--jump-active nil)
@@ -332,10 +337,14 @@ Fires during redisplay, right after window-start changes."
   (interactive)
   (let ((in-visual (and (fboundp 'evil-visual-state-p)
                         (evil-visual-state-p))))
-    ;; Keep Evil visual selection alive: tell post-command to refresh
-    ;; instead of contract, so the selection extends to the new point.
+    ;; Same anchor setup as sc-avy-goto-line so that after the
+    ;; `avy-goto-char-2' jump, `evil-visual-refresh' extends the
+    ;; selection from the anchor to the new point.
     (when in-visual
-      (setq evil-visual-region-expanded nil))
+      (set-marker (mark-marker)
+                  (or (and (boundp 'evil-visual-mark)
+                           (marker-position evil-visual-mark))
+                      (point))))
     (setq sc--jump-active t)
     (sc--init)
     (unwind-protect
@@ -414,6 +423,21 @@ timer callback after every batch of terminal output is processed."
 (defun global-sc-mode--disable-all ()
   (dolist (buf (buffer-list))
     (with-current-buffer buf (when sc-mode (sc-mode -1)))))
+
+;; ═════════════════════════════════════════════════════════════════════════════
+;;  Evil :keep-visual — prevent cursor-jump on command entry
+;; ═════════════════════════════════════════════════════════════════════════════
+;; Setting `:keep-visual' on a command tells `evil-visual-pre-command' to
+;; skip `evil-visual-expand-region' entirely.  Without it, pre-command moves
+;; point to `evil-visual-end' (the far end of the selection) — causing the
+;; cursor to visibly jump on every visual-mode invocation of ; or f.
+;; With `:keep-visual', point stays where it was when the user pressed the
+;; key, and we manually set up the Emacs mark so `evil-visual-post-command'
+;; can still extend the selection correctly.
+
+(when (fboundp 'evil-set-command-property)
+  (evil-set-command-property 'sc-avy-goto-line :keep-visual t)
+  (evil-set-command-property 'sc-avy-goto-char-2 :keep-visual t))
 
 (provide 'statuscolumn)
 ;; statuscolumn.el ends here
