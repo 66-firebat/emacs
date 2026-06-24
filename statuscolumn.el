@@ -208,16 +208,18 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
     (sc--rebuild)))
 
 ;;;###autoload
-(defun sc--avy-goto-char-2-advice (orig-fn &rest args)
-  "Show bolt icon on current line while avy-goto-char-2 is active."
+(defun sc-avy-goto-char-2 ()
+  "Like `avy-goto-char-2' but shows bolt icon (󰠠) in statuscolumn.
+
+Sets the bolt flag before `avy-goto-char-2' reads its first character,
+then restores the slice icon on completion."
+  (interactive)
   (setq sc--jump-active t)
   (sc--rebuild)
   (unwind-protect
-      (apply orig-fn args)
+      (call-interactively 'avy-goto-char-2)
     (setq sc--jump-active nil)
     (sc--rebuild)))
-
-(advice-add 'avy-goto-char-2 :around #'sc--avy-goto-char-2-advice)
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  sc-mode

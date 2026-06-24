@@ -39,7 +39,7 @@
 ;; S + two chars → jump to that exact character pair
 ;; g s           → jump to a visible line number
 (general-def '(normal visual visual-block visual-line)
-  "f" 'avy-goto-char-2
+  "f" 'sc-avy-goto-char-2
   "S" 'avy-goto-char-2
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)

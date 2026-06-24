@@ -355,7 +355,7 @@
   :config
   (setq avy-background t)          ;; Dim the rest of the buffer
   (setq avy-style 'at-full)        ;; Show full candidate text
-  (setq avy-all-windows 'all))     ;; Search all windows
+  (setq avy-all-windows t))     ;; All windows on current frame
 
 ;; ---------------------------------------------------------------------------
 ;;  12.  Project Management
