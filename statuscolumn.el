@@ -21,9 +21,23 @@
 ;;  Helpers
 ;; ═════════════════════════════════════════════════════════════════════════════
 
+(defconst sc--punct-labels
+  (mapcar #'string '(?. ?\, ?@ ?! ?# ?$ ?% ?^ ?& ?* ?\( ?\) ?- ?+ ?= ?\[ ?\] ?{ ?} ?: ?\; ?< ?> ?? ?/ ?~))
+  "Punctuation labels used after a-z for faster single-key jumping.")
+
 (defun sc--index-label (n)
-  (if (< n 26) (string (+ ?a n))
-    (concat (sc--index-label (1- (/ n 26))) (string (+ ?a (% n 26))))))
+  "Return label for 0-based N: 0=a, 25=z, 26=., 27=,, 28=@, ..."
+  (if (< n 26)
+      (string (+ ?a n))
+    (let ((p-idx (- n 26)))
+      (if (< p-idx (length sc--punct-labels))
+          ;; Single punctuation character (padded to 2 for alignment)
+          (concat (nth p-idx sc--punct-labels) " ")
+        ;; Fall back to double-letter after running out of punctuation
+        (let* ((remaining (- p-idx (length sc--punct-labels)))
+               (n (+ remaining 26)))
+          (concat (sc--index-label (1- (/ n 26)))
+                  (string (+ ?a (% n 26)))))))))
 
 (defun sc--make-pairs (positions)
   (let ((i 0))
