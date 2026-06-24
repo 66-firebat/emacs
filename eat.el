@@ -30,6 +30,12 @@ Subtracts 7 for the letter label + separator prefix."
   (setq eat-enable-shell-integration t)
   (setq eat-default-input-mode 'semi-char)
 
+  ;; Unlimited scrollback: eat normally keeps only the most recent
+  ;; 131072 characters (128 KB) of terminal output and deletes older
+  ;; content.  Setting to nil disables this truncation entirely, so
+  ;; you can scroll back through the ENTIRE terminal session history.
+  (setq eat-term-scrollback-size nil)
+
   ;; Eat's directory tracking updates `default-directory' when the shell
   ;; reports its working directory via OSC 7.  For this to work, your
   ;; .bashrc needs shell integration:

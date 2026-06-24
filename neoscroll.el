@@ -260,7 +260,7 @@
 ;;  Configuration — applied when the mode is enabled
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(setq neoscroll-easing 'sine)
+(setq neoscroll-easing 'quadratic)
 (setq neoscroll-scroll-duration 0.15)
 (setq neoscroll-page-duration 0.25)
 (setq neoscroll-line-duration 0.025)
