@@ -125,10 +125,8 @@ buffers in the same group."
   (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
   (setq centaur-tabs-cycle-scope 'tabs)
 
-  ;; Reorder tabs in the tabset before centaur-tabs-line renders them,
-  ;; so the current buffer is always the leftmost tab.
+  ;; Reorder tabs so the current buffer is always the leftmost tab.
   (defun my/centaur-tabs--reorder-tabset (orig-fn)
-    "Move current buffer's tab to front of tabset before rendering."
     (let* ((tabset (centaur-tabs-current-tabset t)))
       (when tabset
         (let* ((cur (current-buffer))
@@ -139,6 +137,41 @@ buffers in the same group."
     (funcall orig-fn))
 
   (advice-add 'centaur-tabs-line :around #'my/centaur-tabs--reorder-tabset)
+
+  ;; Apply gradient colors AFTER centaur-tabs has applied its own faces.
+  ;; This overrides the face on the final propertized strings.
+  (defun my/centaur-tabs--apply-gradient (orig-fn tabset)
+    "Replace centaur-tabs' tab faces with gradient colours."
+    (let* ((result (funcall orig-fn tabset))
+           (tabs (and tabset (symbol-value tabset)))
+           (colors ["#D4D4D4" "#BCBCBC" "#A4A4A4" "#8C8C8C" "#747474" "#5C5C5C"]))
+      (when (and (consp result) (nth 2 result) tabs)
+        (let ((elts (nth 2 result)))
+          (cl-loop for i from 0
+                   for elt in elts
+                   for tab in tabs
+                   do (when (< i 6)
+                        (let* ((bg (aref colors (min i 5)))
+                               ;; Strip centaur-tabs' trailing space so separators sit flush
+                               (stripped (if (string-suffix-p " " elt)
+                                             (substring elt 0 -1) elt)))
+                          (setf (nth i elts)
+                                (propertize stripped 'face
+                                            (list :background bg :foreground "#2b2b2b"))))))
+          ;; Insert  between slot 1 and slot 2, and  after slot 2
+          (when (cdr elts)
+            (let* ((bg2 (aref colors 1))
+                   (sep1 (propertize "" 'face (list :background "#2b2b2b" :foreground bg2)))
+                   (sep2 (propertize "█" 'face (list :background "#2b2b2b" :foreground bg2))))
+              ;; Insert  after tab 1 (position 0)
+              (setcdr elts (cons sep1 (cdr elts)))
+              ;; Insert  after tab 2 (now at position 2 after the first insertion)
+              (let ((tail (nthcdr 2 elts)))
+                (setcdr tail (cons sep2 (cdr tail))))))
+          (setf (nth 2 result) elts)))
+      result))
+
+  (advice-add 'centaur-tabs-line-format :around #'my/centaur-tabs--apply-gradient)
 
   (defun my/centaur-tabs-group-icon ()
     "Return group icon + live line number + active tab indicator.
