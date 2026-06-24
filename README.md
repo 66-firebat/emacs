@@ -20,6 +20,11 @@ A terminal-first Emacs config with **Evil** (Vim emulation), **Eat** terminal em
 | `L` | normal/visual | `evil-last-non-blank` | Last non-whitespace on line |
 | `C-o` | normal | `evil-jump-backward` | Jump back in global jump ring |
 | `C-i` | normal | `evil-jump-forward` | Jump forward in global jump ring |
+| `C-u` | normal/visual | `evil-scroll-up` | Scroll up 1/2 screen (animated) |
+| `C-d` | normal/visual | `evil-scroll-down` | Scroll down 1/2 screen (animated) |
+| `C-f` | normal/visual | `evil-scroll-page-down` | Scroll down full page (animated) |
+| `C-y` | normal/visual | `evil-scroll-line-up` | Scroll up 1 line (animated) |
+| `C-e` | normal/visual | `my/dired-from-eat` | Dired at Eat's cwd (overrides scroll-down) |
 
 ### Tab & Buffer Switching
 
@@ -137,17 +142,20 @@ Replaces Emacs' built-in line numbers with permanent letter-based jump labels in
 |------|---------|-------|
 | Non-current line | ` a  ┃ text` | 7 chars |
 | Current line | ` 󰪟 ┣ text` | 7 chars |
-| Continuation line | `     ┃ text` | 7 chars |
+| Non-current wrap | `   ┃ text` | 7 chars |
+| Current wrap | `   ┣ text` | 7 chars |
 | With mark | ` a a┃ text` | 7 chars |
 
-**Features:**
-- **Letter labels** — `a`–`z`, then `. , @ ! # $ % ^ & * ( ) - + = [ ] { } : ; < > ? / ~`, then `aa`–`zz`
-- **Slice icon** — Current line shows a Nerd Font scrollbar-thumb icon (`󰰗`–`󰪥`) based on buffer position (same 8-band algorithm as Doom Modeline)
-- **Bolt icon** — When `f` or `;` is pressed, the current line shows `󰠠 ┣` instead of the slice icon
-- **Evil marks** — Local marks (`a`–`z`) and global marks (`A`–`Z`) appear before the label. The most recently set mark wins when multiple marks share a line
-- **Wrap-prefix** — Continuation lines show `     ┣ ` (orange bump for cursor line's continuations, gray flat for others)
-- **Jump command** (`;`) — Type the label to jump directly, with narrowing
-- **Refresh** — Idle timer (0.1s) keeps labels current; hooks for `after-change-functions` and `post-command-hook`
+**Design:**
+- Runs `sc--init` on **every** `post-command-hook` for simplicity and correctness
+- Deletes ALL overlays and creates fresh ones each time — no flicker because redisplay runs *between* commands, not within them
+- `window-scroll-functions` hook catches auto-scrolling during redisplay
+- `window-size-change-functions` hook catches window resizes
+- `eat-update-hook` integration refreshes labels immediately after Eat terminal output (which bypasses the command loop)
+
+**Wrap icon:**
+- Continuation lines show `    ┃ ` on non-current lines and `    ┣ ` on current lines
+-  uses `#ff4400` (orange) for current-line wraps, `#444444` (gray) for non-current wraps
 
 ### `jumpring.el` — Global Jump Ring
 
@@ -158,10 +166,37 @@ Overrides Evil's per-window jump list with a **single global jump ring** shared 
 - When jumping back to a non-file buffer, `switch-to-buffer` is used instead of `find-file`
 - Default capacity: **100 jumps** (configurable via `evil-jumps-max-length`)
 
+### `neoscroll.el` — Smooth Animated Scrolling
+
+Bundles the [neoscroll.el](https://github.com/0WD0/neoscroll.el) library (v1.0.0) with custom configuration. Intercepts Evil's scroll commands and animates them with easing functions.
+
+**Overridden commands:**
+
+| Key | Evil command | Replaced with | Scroll amount |
+|-----|-------------|---------------|---------------|
+| `C-u` | `evil-scroll-up` | `neoscroll-ctrl-u` | half window up |
+| `C-d` | `evil-scroll-down` | `neoscroll-ctrl-d` | half window down |
+| `C-b` | `evil-scroll-page-up` | `neoscroll-ctrl-b` | full page up |
+| `C-f` | `evil-scroll-page-down` | `neoscroll-ctrl-f` | full page down |
+| `C-y` | `evil-scroll-line-up` | `neoscroll-ctrl-y` | 1 line up (cursor stays) |
+| `C-e` | `evil-scroll-line-down` | `neoscroll-ctrl-e` | 1 line down (cursor stays) |
+
+**Easing functions available:** `linear`, `quadratic` (current), `cubic`, `sine`
+
+All distribute a fixed time budget (e.g. 150ms for C-u) across frames. The easing function controls how time slices are allocated — fast frames early (ease-out) or evenly (linear).
+
+**Statuscolumn integration:** After each animation step, `sc--init` is called to keep jump labels in sync with scrolled content.
+
+**Timings:**
+- `neoscroll-scroll-duration` — 0.15s (C-u/C-d half-page)
+- `neoscroll-page-duration` — 0.25s (C-f/C-b full-page)
+- `neoscroll-line-duration` — 0.025s (C-y/C-e single-line)
+
 ### `eat.el` — Terminal Emulator
 
 - **Shell integration** — OSC 7 directory tracking (updates `default-directory` on `cd`)
 - **Statuscolumn-aware** — Custom `window-adjust-process-window-size-function` subtracts **7 characters** for the label+separator prefix
+- **Unlimited scrollback** — `eat-term-scrollback-size nil` preserves the entire terminal session history (default 128 KB limit removed)
 - **Input mode** — `semi-char` (most keys sent to terminal, special keys handled by Emacs)
 - **Multiple terminals** — Indexed tabs (`0 `, `1 `, `2 `...) via `SPC t t`
 
@@ -224,7 +259,7 @@ Seamless clipboard for terminal Emacs on Wayland using `wl-copy`/`wl-paste`.
 
 | # | File | Description |
 |---|------|-------------|
-| 1 | `init.el` | Bootstrap, package management, sane defaults |
+| 1 | `init.el` | Bootstrap, package management, sane defaults, scroll behavior |
 | 2 | `evil-cursor.el` | Per-state terminal cursor |
 | 3 | `doom-modeline.el` | Custom mode line |
 | 4 | `consult-buffer.el` | Consult + Eat buffer source |
@@ -232,18 +267,24 @@ Seamless clipboard for terminal Emacs on Wayland using `wl-copy`/`wl-paste`.
 | 6 | `dired.el` | Dired customizations |
 | 7 | `panes.el` | Window divider glyphs |
 | 8 | `statuscolumn.el` | Permanent letter jump labels |
-| 9 | `jumpring.el` | Global Evil jump ring |
-| 10 | `eat.el` | Terminal emulator |
-| 11 | `diff-hl.el` | Change indicators |
-| 12 | `centaur-tabs.el` | Tab bar |
-| 13 | `keybinds.el` | All custom keybindings |
-| 14 | `pi.el` | Pi AI agent |
-| 15 | `wl-clipboard.el` | Wayland clipboard |
-| 16 | `theme.el` | Firebat theme |
+| 9 | `neoscroll.el` | Smooth animated scrolling |
+| 10 | `jumpring.el` | Global Evil jump ring |
+| 11 | `eat.el` | Terminal emulator |
+| 12 | `diff-hl.el` | Change indicators |
+| 13 | `centaur-tabs.el` | Tab bar |
+| 14 | `keybinds.el` | All custom keybindings |
+| 15 | `pi.el` | Pi AI agent |
+| 16 | `wl-clipboard.el` | Wayland clipboard |
+| 17 | `theme.el` | Firebat theme |
 
 ---
 
 ## Configuration Highlights
+
+### Scroll Behavior
+
+- `scroll-conservatively 101` — never recenter cursor when scrolling past window edges (equivalent of Vim's `scrolloff=0`)
+- `scroll-margin 0` — no auto-scroll margin at window edges
 
 ### Evil
 
