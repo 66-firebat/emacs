@@ -101,24 +101,26 @@ Removes the old position for the same mark character."
 
 (defun sc--build-mark-map ()
   "Build map of line-beginning positions to Evil mark characters.
-Validates recent marks against evil-get-marker to handle deletions."
+Recent marks get exclusive priority over non-recent marks."
   (setq sc--mark-map (make-hash-table :test 'eql))
   (when (fboundp 'evil-get-marker)
-    ;; First pass: iterate all marks via evil-get-marker (authoritative)
+    ;; First pass: add marks NOT tracked in sc--recent-marks
     (dolist (char (append (number-sequence ?a ?z) (number-sequence ?A ?Z)))
-      (let ((pos (evil-get-marker char)))
-        (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
-          (let ((bol (save-excursion
-                       (goto-char pos) (line-beginning-position))))
-            (puthash bol (string char) sc--mark-map)))))
-    ;; Second pass: recent marks overwrite — but validate they still exist
+      (unless (cl-find char sc--recent-marks :key #'cdr)
+        (let ((pos (evil-get-marker char)))
+          (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
+            (let ((bol (save-excursion
+                         (goto-char pos) (line-beginning-position))))
+              (puthash bol (string char) sc--mark-map))))))
+    ;; Second pass: recent marks — most recent first, first wins
+    ;; No BOL check: markers track text shifts automatically via evil-get-marker
     (dolist (pair sc--recent-marks)
       (let* ((char (cdr pair))
              (pos (evil-get-marker char)))
         (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
           (let ((bol (save-excursion
                        (goto-char pos) (line-beginning-position))))
-            (when (eq bol (car pair))
+            (unless (gethash bol sc--mark-map)
               (puthash bol (string char) sc--mark-map))))))))
 
 (defun sc--mark-face (mark)
