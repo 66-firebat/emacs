@@ -6,22 +6,22 @@
 ;;  Accounts for the statuscolumn's letter label + separator width when
 ;;  calculating the terminal width, preventing content overflow.
 ;;
-;;  The statuscolumn adds 6 chars per line via `line-prefix' overlays:
-;;    " a  ┃ " = 6 chars (space + label + 2 spaces + separator + space)
+;;  The statuscolumn adds 7 chars per line via `line-prefix' overlays:
+;;    "  a  ┃ " = 7 chars (leading space + mark/space + space + label + 2 spaces + separator)
 ;;
 ;;  `window-max-chars-per-line' accounts for fringes, scrollbars, and
 ;;  margins (left-margin-width) but NOT for `line-prefix' overlays.
-;;  We subtract 6 to compensate.
+;;  We subtract 7 to compensate.
 ;; =============================================================================
 
 (defun my/eat-adjust-window-size (process windows)
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.
-Subtracts 6 for the letter label + separator prefix."
+Subtracts 7 for the letter label + separator prefix."
   (let ((window (car windows)))
     (when (window-live-p window)
-      (cons (max (- (window-max-chars-per-line window) 6) 10)
+      (cons (max (- (window-max-chars-per-line window) 7) 10)
             (window-text-height window)))))
 
 (use-package eat

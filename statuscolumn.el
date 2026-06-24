@@ -87,33 +87,34 @@ Uses evil-get-marker which handles local (a-z) and global (A-Z) marks."
   (propertize mark 'face 'sc-label-face))
 
 (defun sc--current-str (&optional mark)
-  "Prefix: space + icon + (mark or space) + ┣ + space.  Always 6 chars."
+  "Prefix: space + (mark or space) + space + icon + space + ┣ + space.  7 chars."
   (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
-    (concat (propertize (concat " " icon) 'face 'sc-current-face)
+    (concat (propertize " " 'face 'sc-current-face)
+            (if mark (propertize mark 'face 'sc-current-face)
+              (propertize " " 'face 'sc-current-face))
             (propertize " " 'face 'sc-current-face)
-            (if mark
-                (concat (propertize mark 'face 'sc-current-face)
-                        (propertize "┣ " 'face 'sc-bump))
-              (propertize " ┣ " 'face 'sc-bump)))))
+            (propertize icon 'face 'sc-current-face)
+            (propertize " " 'face 'sc-current-face)
+            (propertize "┣ " 'face 'sc-bump))))
 
 (defun sc--lab-str (label &optional mark)
-  "Label prefix, always 6 chars.
-  Single-char: ` a a┃ `, Double-char: `aa a┃ `, No mark: ` a  ┃ `."
-  (let* ((trimmed (string-trim-right label))
-         (one-char (= 1 (length trimmed))))
-    (concat (propertize (concat " " trimmed (if one-char " " "")) 'face 'sc-label-face)
-            (if mark
-                (concat (propertize mark 'face 'sc-label-face)
-                        (propertize "┃ " 'face 'sc-sep))
-              (propertize " ┃ " 'face 'sc-sep)))))
+  "Prefix: space + (mark or space) + space + label + ┃ + space.  7 chars."
+  (let ((trimmed (string-trim-right label)))
+    (concat (propertize " " 'face 'sc-label-face)
+            (if mark (propertize mark 'face 'sc-label-face)
+              (propertize " " 'face 'sc-label-face))
+            (propertize " " 'face 'sc-label-face)
+            (propertize trimmed 'face 'sc-label-face)
+            (propertize (if (= 1 (length trimmed)) " " "") 'face 'sc-label-face)
+            (propertize "┃ " 'face 'sc-sep))))
 
 (defun sc--sep-str ()
-  "Padded separator for continuation lines — uses ┃ with gray sc-sep face."
-  (propertize "    ┃ " 'face 'sc-sep))
+  "Padded separator for continuation lines — ┃ with gray sc-sep face.  7 chars."
+  (propertize "     ┃ " 'face 'sc-sep))
 
 (defun sc--bump-str ()
-  "Padded bump for the current line's continuation — uses ┣ with orange sc-bump."
-  (propertize "    ┣ " 'face 'sc-bump))
+  "Padded bump for current line's continuation — ┣ with orange sc-bump.  7 chars."
+  (propertize "     ┣ " 'face 'sc-bump))
 
 (defun sc--make-ov (pos)
   "Create overlay covering the entire logical line starting at POS."
