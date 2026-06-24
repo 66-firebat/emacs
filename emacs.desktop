@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Emacs
+Comment=Emacs text editor with eat terminal
+Exec=ghostty -e bash -lc 'emacs --daemon -l /home/fireshark/fire_profile/configuration_modules/emacs/init.el 2>/dev/null; until [ -S "$XDG_RUNTIME_DIR/emacs/server" ]; do sleep 0.1; done; emacsclient -nw'
+Icon=emacs
+Terminal=false
+Type=Application
+Categories=Development;TextEditor;
+StartupNotify=true
