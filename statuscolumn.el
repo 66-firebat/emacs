@@ -91,22 +91,34 @@ Removes the old position for the same mark character."
 (when (fboundp 'evil-set-marker)
   (advice-add 'evil-set-marker :after #'sc--track-recent-mark))
 
+(defun sc--forget-mark (char &rest _)
+  "Remove mark CHAR from recent marks when deleted by delmarks."
+  (setq sc--recent-marks
+        (cl-remove-if (lambda (p) (= (cdr p) char)) sc--recent-marks)))
+
+(when (fboundp 'evil-del-marker)
+  (advice-add 'evil-del-marker :after #'sc--forget-mark))
+
 (defun sc--build-mark-map ()
   "Build map of line-beginning positions to Evil mark characters.
-Recently set marks take priority over older ones on the same line."
+Validates recent marks against evil-get-marker to handle deletions."
   (setq sc--mark-map (make-hash-table :test 'eql))
-  ;; First, add recently set marks (most recent first, first wins)
-  (dolist (pair sc--recent-marks)
-    (unless (gethash (car pair) sc--mark-map)
-      (puthash (car pair) (string (cdr pair)) sc--mark-map)))
-  ;; Then fill in any remaining marks from Evil's marker list
   (when (fboundp 'evil-get-marker)
+    ;; First pass: iterate all marks via evil-get-marker (authoritative)
     (dolist (char (append (number-sequence ?a ?z) (number-sequence ?A ?Z)))
       (let ((pos (evil-get-marker char)))
         (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
           (let ((bol (save-excursion
                        (goto-char pos) (line-beginning-position))))
-            (unless (gethash bol sc--mark-map)
+            (puthash bol (string char) sc--mark-map)))))
+    ;; Second pass: recent marks overwrite — but validate they still exist
+    (dolist (pair sc--recent-marks)
+      (let* ((char (cdr pair))
+             (pos (evil-get-marker char)))
+        (when (and (numberp pos) (> pos 0) (<= pos (point-max)))
+          (let ((bol (save-excursion
+                       (goto-char pos) (line-beginning-position))))
+            (when (eq bol (car pair))
               (puthash bol (string char) sc--mark-map))))))))
 
 (defun sc--mark-face (mark)
