@@ -41,7 +41,7 @@ Maps 12.5%% bands to glyphs, same algorithm as doom-modeline."
          (band (floor (* 8 pct))))
     (cond
      ((>= pct 1.0)  "󰪥")      ;; 100%%
-     ((= band 0)    "󰰗")      ;;   0%% – 12.5%%
+     ((= band 0)    "󰄰")      ;;   0%% – 12.5%%
      ((= band 1)    "󰪞")      ;;  12.5%% – 25%%
      ((= band 2)    "󰪟")      ;;  25%% – 37.5%%
      ((= band 3)    "󰪠")      ;;  37.5%% – 50%%
