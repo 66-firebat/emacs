@@ -12,6 +12,10 @@
 ;; "dangerous", but we use it intentionally to reuse the dired buffer).
 (put 'dired-find-alternate-file 'disabled nil)
 
+;; When copying/moving files, automatically suggest the adjacent dired buffer's
+;; directory as the target (dwim = "do what I mean").
+(setq dired-dwim-target t)
+
 (defun my/dired-up-directory ()
   "Go up one directory, reusing the current dired buffer."
   (interactive)
