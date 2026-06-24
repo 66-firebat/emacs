@@ -50,7 +50,27 @@ Subtracts 7 for the letter label + separator prefix."
   (add-hook 'eat-mode-hook
             (lambda ()
               (setq-local window-adjust-process-window-size-function
-                          #'my/eat-adjust-window-size))))
+                          #'my/eat-adjust-window-size)))
+
+  ;; Cursor snapping: when entering insert mode in an eat terminal,
+  ;; move Emacs point to the terminal's actual cursor position.
+  ;; Without this, Evil's point can be anywhere in the buffer (from
+  ;; normal-mode navigation), but the terminal expects input at its
+  ;; own cursor location.  `eat-term-display-cursor' returns the
+  ;; Emacs buffer position corresponding to the terminal's cursor.
+  (defun my/eat-snap-cursor-on-insert ()
+    "Move point to terminal cursor when entering insert state.
+Added to `evil-insert-state-entry-hook'."
+    (when (and (derived-mode-p 'eat-mode)
+               (bound-and-true-p eat-terminal))
+      (let ((pos (condition-case nil
+                     (eat-term-display-cursor eat-terminal)
+                   (error nil))))
+        (when (and pos (<= (point-min) pos (point-max))
+                   (/= pos (point)))
+          (goto-char pos)))))
+
+  (add-hook 'evil-insert-state-entry-hook #'my/eat-snap-cursor-on-insert))
 
 (provide 'eat)
 
