@@ -105,13 +105,12 @@ The \"Buffers\" entry is a catch-all for unmatched modes.")
   ;; order (Emacs' native (buffer-list) ordering).
 
   (defun my/tab-buffer-list ()
-    "Return up to 7 buffers for centaur-tabs.
-Current buffer leftmost, followed by up to 6 buffers
-in most-recently-accessed order within the same group."
+    "Return up to 6 buffers for centaur-tabs.
+Current buffer leftmost, followed by up to 5 most-recently-accessed
+buffers in the same group."
     (let* ((cur (current-buffer))
            (group (my/tab-group-for-buffer cur)))
       (when group
-        ;; Filter (buffer-list) to current group, preserving MRU order
         (let* ((filtered (delq nil
                                (mapcar (lambda (b)
                                          (when (and (buffer-live-p b)
@@ -121,7 +120,7 @@ in most-recently-accessed order within the same group."
                (pos (cl-position cur filtered)))
           (when pos
             (let ((after (nthcdr (1+ pos) filtered)))
-              (cons cur (seq-take after 6))))))))
+              (cons cur (seq-take after 5))))))))
 
   (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
   (setq centaur-tabs-cycle-scope 'tabs)
@@ -248,15 +247,18 @@ Result is cached per project path."
 ;; indicator icons.
 
 (defun my/centaur-tabs-tab-label (tab)
-  "Return a label for TAB with just the filename.
-Line numbers are now shown in the group icon block."
+  "Return a label for TAB.  Modified buffers get 󱍸 prefix."
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
-         (bufname (buffer-name buf)))
+         (bufname (buffer-name buf))
+         (modified (and (buffer-modified-p buf)
+                        (not (with-current-buffer buf
+                               (derived-mode-p 'vterm-mode)))))
+         (prefix (if modified "󱍸 " "")))
     (if selected-p
-        (format " %s " bufname)
-      (format " %s " bufname))))
+        (format " %s%s " prefix bufname)
+      (format " %s%s " prefix bufname))))
 
 ;; ── Line number cache ─────────────────────────────────────────
 ;; Active tab shows live line number; inactive tabs show a cached
