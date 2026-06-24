@@ -230,6 +230,7 @@ Background: #2b2b2b  Accent: #ff4400")
  `(centaur-tabs-modified-marker-selected ((t (:foreground ,firebat-accent))))
  `(centaur-tabs-modified-marker-unselected ((t (:foreground ,firebat-fg-alt))))
  `(my/centaur-tabs-group-face ((t (:foreground ,firebat-accent :background ,firebat-bg :weight bold))))
+ `(my/centaur-tabs-group-icon ((t (:background ,firebat-accent :foreground ,firebat-bg :weight bold))))
 
  ;; ═══════════════════════════════════════════════════════════════
  ;;  Which-key

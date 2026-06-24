@@ -15,15 +15,12 @@
   (centaur-tabs-mode t)
   (centaur-tabs-headline-match)
 
-  ;; ── Group label in tab line ──────────────────────────────────
-  ;; Override the default display-line format (tab-line-format or
-  ;; header-line-format, whichever centaur-tabs chose) to prepend
-  ;; the current group name.  The group-name segment is an :eval
-  ;; form so it's always current — centaur-tabs' own tab bar
-  ;; caching is unaffected.
+  ;; ── Tab line format ──────────────────────────────────────────
+  ;; Override the default display-line format: group icon box
+  ;; followed by our custom tab line function.
   (let ((fmt-var (symbol-value 'centaur-tabs-display-line-format)))
     (set-default fmt-var
-                 `((:eval (my/centaur-tabs-group-name))
+                 `((:eval (my/centaur-tabs-group-icon))
                    (:eval (my/centaur-tabs-line)))))
 
   ;; ── Tab label — active/inactive indicator ──────────────────
@@ -66,15 +63,97 @@
   (setq centaur-tabs-height 24)
   (setq centaur-tabs-bar-height (+ 8 centaur-tabs-height))
 
-  ;; ── Buffer grouping ──────────────────────────────────────────
-  ;; Group buffers by project/mode so related buffers sit together.
-  (setq centaur-tabs-cycle-scope 'tabs)     ;; Cycle within visible tabs
+  ;; ── Buffer grouping & ordering ───────────────────────────────
+  ;; Group buffers by major-mode category.  Each group maintains a
+  ;; creation-ordered list.  The current buffer is always the
+  ;; leftmost tab, followed by up to 6 buffers spawned after it.
 
-  ;; ── Hide tabs in special buffers ─────────────────────────────
-  ;; In these modes, the tab bar would add clutter with no benefit.
-  ;; vterm deliberately excluded — tab bar shows there too.
-  (add-hook 'help-mode-hook       'centaur-tabs-local-mode)
-  (add-hook 'apropos-mode-hook    'centaur-tabs-local-mode)
+
+  (defvar my/tab-group-categories
+    '(("Code"    ""   emacs-lisp-mode lisp-mode python-mode go-mode
+                 rust-mode java-mode c-mode c++-mode c-ts-mode
+                 c++-ts-mode javascript-mode js-mode js2-mode
+                 typescript-mode tsx-mode css-mode web-mode
+                 nix-mode sh-mode bash-mode yaml-mode json-mode
+                 sql-mode)
+      ("Docs"    ""   org-mode markdown-mode text-mode)
+      ("Config"  ""   conf-mode)
+      ("Tools"   ""   dired-mode magit-mode eat-mode vterm-mode
+                 help-mode apropos-mode Info-mode)
+      ("Buffers" ""))
+    "Tab group categories.  Each entry is (CATEGORY ICON MODE ...).
+The \"Buffers\" entry is a catch-all for unmatched modes.")
+
+  (defun my/tab-group-for-buffer (&optional buffer)
+    "Return the group name for BUFFER, or nil if excluded."
+    (with-current-buffer (or buffer (current-buffer))
+      (let ((mode major-mode)
+            (bname (buffer-name)))
+        (when (and (not (string-prefix-p " " bname))
+                   (not (member bname '("*scratch*" "*Messages*"))))
+          ;; Check explicit categories (modes start at 3rd element)
+          (catch 'found
+            (dolist (cat my/tab-group-categories)
+              (when (and (cddr cat) (memq mode (cddr cat)))
+                (throw 'found (car cat))))
+            ;; Catch-all: "Buffers"
+            (when-let ((catch-all (assoc "Buffers" my/tab-group-categories)))
+              (car catch-all)))))))
+
+  ;; Tab ordering: current buffer is always leftmost.  Subsequent tabs
+  ;; are the most-recently-accessed buffers in the same group, in MRU
+  ;; order (Emacs' native (buffer-list) ordering).
+
+  (defun my/tab-buffer-list ()
+    "Return up to 7 buffers for centaur-tabs.
+Current buffer leftmost, followed by up to 6 buffers
+in most-recently-accessed order within the same group."
+    (let* ((cur (current-buffer))
+           (group (my/tab-group-for-buffer cur)))
+      (when group
+        ;; Filter (buffer-list) to current group, preserving MRU order
+        (let* ((filtered (delq nil
+                               (mapcar (lambda (b)
+                                         (when (and (buffer-live-p b)
+                                                    (eq (my/tab-group-for-buffer b) group))
+                                           b))
+                                       (buffer-list))))
+               (pos (cl-position cur filtered)))
+          (when pos
+            (let ((after (nthcdr (1+ pos) filtered)))
+              (cons cur (seq-take after 6))))))))
+
+  (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
+  (setq centaur-tabs-cycle-scope 'tabs)
+
+  ;; Reorder tabs in the tabset before centaur-tabs-line renders them,
+  ;; so the current buffer is always the leftmost tab.
+  (defun my/centaur-tabs--reorder-tabset (orig-fn)
+    "Move current buffer's tab to front of tabset before rendering."
+    (let* ((tabset (centaur-tabs-current-tabset t)))
+      (when tabset
+        (let* ((cur (current-buffer))
+               (tabs (symbol-value tabset))
+               (cur-tab (cl-find cur tabs :key #'car)))
+          (when (and cur-tab (not (eq cur-tab (car tabs))))
+            (set tabset (cons cur-tab (cl-remove cur-tab tabs)))))))
+    (funcall orig-fn))
+
+  (advice-add 'centaur-tabs-line :around #'my/centaur-tabs--reorder-tabset)
+
+  (defun my/centaur-tabs-group-icon ()
+    "Return group icon + live line number + active tab indicator.
+All use the same fixed colors (orange bg, dark fg, bold)."
+    (when-let* ((group (my/tab-group-for-buffer (current-buffer)))
+                (entry (assoc group my/tab-group-categories))
+                (icon (cadr entry)))
+      (let* ((face '(:background "#ff4400" :foreground "#2b2b2b" :weight bold))
+             (line (my/centaur-tabs--line-number (current-buffer))))
+        (concat (propertize (format " %s " icon) 'face face)
+                (propertize (format "  %s " line) 'face face)
+                (propertize "" 'face face)))))
+
+
 
   ;; ── Tab navigation keybindings ───────────────────────────────
   ;; Non-Evil bindings for tab cycling (works from any state).
@@ -169,18 +248,15 @@ Result is cached per project path."
 ;; indicator icons.
 
 (defun my/centaur-tabs-tab-label (tab)
-  "Return a label for TAB with a live line number (active tab)
-or a stale cached line number (inactive tab).
-
-Format: █ filename  <line> "
+  "Return a label for TAB with just the filename.
+Line numbers are now shown in the group icon block."
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
-         (bufname (buffer-name buf))
-         (line-str (my/centaur-tabs--line-number buf)))
+         (bufname (buffer-name buf)))
     (if selected-p
-        (format "█ %s  %s " bufname line-str)
-      (format " %s  %s" bufname line-str))))
+        (format " %s " bufname)
+      (format " %s " bufname))))
 
 ;; ── Line number cache ─────────────────────────────────────────
 ;; Active tab shows live line number; inactive tabs show a cached
@@ -209,8 +285,9 @@ the cached stale value with fallback to 󱃓."
 ;; the cursor moves.
 
 (defun my/centaur-tabs--force-update ()
-  "Force tab bar redisplay for line number live updates."
+  "Force tab bar redisplay — rebuilds tabset and clears template."
   (when (and centaur-tabs-mode (not (minibufferp)))
+    (centaur-tabs-buffer-update-groups)    ;; Rebuild tabsets (no alphabetical sort)
     (let ((tabset (centaur-tabs-current-tabset)))
       (when tabset
         (centaur-tabs-set-template tabset nil)))
