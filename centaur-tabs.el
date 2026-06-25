@@ -184,35 +184,45 @@ Re-sort the current tabset into MRU order right before rendering."
   ;; Apply gradient colors AFTER centaur-tabs has applied its own faces.
   ;; This overrides the face on the final propertized strings.
   (defun my/centaur-tabs--apply-gradient (orig-fn tabset)
-    "Replace centaur-tabs' tab faces with gradient colours.
+    "Replace centaur-tabs' tab faces with a uniform #5C5C5C background
+and #ff4400 foreground.
 Then truncate overflowing tabs and replace the new-tab button
 with a +N overflow indicator."
     (let* ((result (funcall orig-fn tabset))
            (tabs (and tabset (symbol-value tabset)))
-           (colors ["#D4D4D4" "#BCBCBC" "#A4A4A4" "#8C8C8C" "#747474" "#5C5C5C"]))
+           (bg-color "#5C5C5C")
+           (fg-color "#2b2b2b"))
       (when (and (consp result) (nth 2 result) tabs)
         (let ((elts (nth 2 result)))
-          ;; Apply gradient colours to ALL tabs (no 6-tab limit)
+          ;; Apply colours to all tab text strings.
+          ;; Selected tab gets a slightly lighter background.
           (cl-loop for i from 0
                    for elt in elts
                    for tab in tabs
-                   do (let* ((bg (aref colors (min i 5)))
+                   do (let* ((selected (centaur-tabs-selected-p tab tabset))
+                             (bg (if selected "#8C8C8C" bg-color))
                              (stripped (if (string-suffix-p " " elt)
                                            (substring elt 0 -1) elt)))
                         (setf (nth i elts)
                               (propertize stripped 'face
-                                          (list :background bg :foreground "#2b2b2b")))))
-          ;; Build result-elts with separators (all tabs, no limit)
-          (let ((result-elts (list (car elts)
-                                  (propertize " " 'face
-                                              (list :background (aref colors 0) :foreground "#2b2b2b")))))
+                                          (list :background bg :foreground fg-color)))))
+          ;; Build result-elts with separators.
+          ;; The separator after each tab matches that tab's background.
+          (let* ((sel-bg "#8C8C8C")
+                 (first-tab-bg (if (and tabs (centaur-tabs-selected-p (car tabs) tabset))
+                                   sel-bg bg-color))
+                 (result-elts (list (car elts)
+                                    (propertize " " 'face
+                                                (list :background first-tab-bg :foreground fg-color)))))
             (cl-loop for i from 1 for elt in (cdr elts)
-                     do (let* ((c (aref colors (min i 5))))
+                     for tab in (cdr tabs)
+                     do (let ((tab-bg (if (centaur-tabs-selected-p tab tabset)
+                                          sel-bg bg-color)))
                           (nconc result-elts
-                                 (list (propertize "" 'face (list :background c :foreground "#2b2b2b"))
+                                 (list (propertize "" 'face (list :background tab-bg :foreground fg-color))
                                        elt
                                        (propertize " " 'face
-                                                   (list :background c :foreground "#2b2b2b"))))))
+                                                   (list :background tab-bg :foreground fg-color))))))
             ;; ── Terminal width overflow truncation ─────────────
             ;; Measure total width of group-icon + all tab elts.
             ;; Drop rightmost tabs until it fits, showing +N.
@@ -242,7 +252,7 @@ with a +N overflow indicator."
                               n-dropped (1+ n-dropped))))))
                 ;; Add +N indicator if any tabs were dropped
                 (when (> n-dropped 0)
-                  (let ((overflow-str (format " 󰍌 %d " n-dropped)))
+                  (let ((overflow-str (format "  %d " n-dropped)))
                     ;; Place overflow indicator at slot 4 (replacing new-tab button)
                     (setcar (nthcdr 4 result)
                             (propertize overflow-str
