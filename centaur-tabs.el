@@ -184,7 +184,7 @@ All use the same fixed colors (orange bg, dark fg, bold)."
       (let* ((face '(:background "#ff4400" :foreground "#2b2b2b" :weight bold))
              (line (my/centaur-tabs--line-number (current-buffer))))
         (concat (propertize (format " %s " icon) 'face face)
-                (propertize (format "  %s " line) 'face face)
+                (propertize (format "  %4s " line) 'face face)
                 (propertize "" 'face face)))))
 
 
