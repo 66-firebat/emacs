@@ -125,18 +125,60 @@ buffers in the same group."
   (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
   (setq centaur-tabs-cycle-scope 'tabs)
 
-  ;; Reorder tabs so the current buffer is always the leftmost tab.
-  (defun my/centaur-tabs--reorder-tabset (orig-fn)
+  ;; ── MRU tab ordering ─────────────────────────────────────────
+  ;; The current buffer is always the leftmost tab, followed by
+  ;; the remaining tabs in most-recently-accessed (MRU) order.
+  ;; Two advices ensure this:
+  ;;
+  ;; 1. On centaur-tabs-buffer-update-groups — re-sorts tabsets
+  ;;    to MRU after centaur-tabs rebuilds them alphabetically.
+  ;; 2. On centaur-tabs-line — re-sorts the current tabset to MRU
+  ;;    right before rendering (catch-all / safety net).
+
+  (defun my/centaur-tabs--sort-tabset-mru (tabset)
+    "Sort tabs in TABSET into MRU order.
+Current buffer first, rest by (buffer-list) order.
+At most 6 tabs are kept."
+    (let* ((cur (current-buffer))
+           (tabs (symbol-value tabset))
+           (mru (seq-filter
+                 (lambda (b)
+                   (and (buffer-live-p b)
+                        (cl-find b tabs :key #'car)))
+                 (buffer-list)))
+           (ordered
+            (delq nil
+                  (mapcar (lambda (b)
+                            (cl-find b tabs :key #'car))
+                          (seq-take mru 6)))))
+      (when ordered
+        (set tabset ordered)
+        (centaur-tabs-set-template tabset nil))))
+
+  (defun my/centaur-tabs--after-update-groups (orig-fn)
+    "Wrap `centaur-tabs-buffer-update-groups' to re-sort tabsets
+into MRU order after centaur-tabs rebuilds them alphabetically."
+    (let ((result (funcall orig-fn)))
+      ;; Re-sort every tabset into MRU order
+      (dolist (buf (buffer-list))
+        (let* ((group (my/tab-group-for-buffer buf))
+               (tabset (and group (centaur-tabs-get-tabset group))))
+          (when tabset
+            (my/centaur-tabs--sort-tabset-mru tabset))))
+      result))
+
+  (defun my/centaur-tabs--reorder-tabset-mru (orig-fn)
+    "Around advice for `centaur-tabs-line'.
+Re-sort the current tabset into MRU order right before rendering."
     (let* ((tabset (centaur-tabs-current-tabset t)))
       (when tabset
-        (let* ((cur (current-buffer))
-               (tabs (symbol-value tabset))
-               (cur-tab (cl-find cur tabs :key #'car)))
-          (when (and cur-tab (not (eq cur-tab (car tabs))))
-            (set tabset (cons cur-tab (cl-remove cur-tab tabs)))))))
+        (my/centaur-tabs--sort-tabset-mru tabset)))
     (funcall orig-fn))
 
-  (advice-add 'centaur-tabs-line :around #'my/centaur-tabs--reorder-tabset)
+  (advice-add 'centaur-tabs-buffer-update-groups
+              :around #'my/centaur-tabs--after-update-groups)
+  (advice-remove 'centaur-tabs-line #'my/centaur-tabs--reorder-tabset)
+  (advice-add 'centaur-tabs-line :around #'my/centaur-tabs--reorder-tabset-mru)
 
   ;; Apply gradient colors AFTER centaur-tabs has applied its own faces.
   ;; This overrides the face on the final propertized strings.
@@ -195,10 +237,11 @@ All use the same fixed colors (orange bg, dark fg, bold)."
   (define-key centaur-tabs-mode-map (kbd "C-<tab>") 'centaur-tabs-forward)
   (define-key centaur-tabs-mode-map (kbd "C-S-<iso-lefttab>") 'centaur-tabs-backward)
 
-  ;; Clean up any previously-registered advice on centaur-tabs-line
-  ;; from earlier versions of this file.
+  ;; Clean up any previously-registered advice from earlier
+  ;; versions of this file.
   (advice-remove 'centaur-tabs-line #'my/centaur-tabs--trim-tab-trailing)
   (advice-remove 'centaur-tabs-line-format #'my/centaur-tabs--trim-tabs)
+  (advice-remove 'centaur-tabs-line #'my/centaur-tabs--reorder-tabset)
 
   ;; Clear any cached template so the next redisplay rebuilds it
   ;; from scratch with the new wrapper.
