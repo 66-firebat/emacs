@@ -158,16 +158,26 @@ buffers in the same group."
                           (setf (nth i elts)
                                 (propertize stripped 'face
                                             (list :background bg :foreground "#2b2b2b"))))))
-          ;; Insert  between slot 1 and slot 2, and  after slot 2
+          ;; Sep and cap alternate: odd i → uninverted, even i → inverted
           (when (cdr elts)
-            (let* ((bg2 (aref colors 1))
-                   (sep1 (propertize "" 'face (list :background "#2b2b2b" :foreground bg2)))
-                   (sep2 (propertize "█" 'face (list :background "#2b2b2b" :foreground bg2))))
-              ;; Insert  after tab 1 (position 0)
-              (setcdr elts (cons sep1 (cdr elts)))
-              ;; Insert  after tab 2 (now at position 2 after the first insertion)
-              (let ((tail (nthcdr 2 elts)))
-                (setcdr tail (cons sep2 (cdr tail))))))
+            (let ((result-elts (list (car elts)))
+                  (dir ""))
+              (cl-loop for i from 1 for elt in (cdr elts)
+                       do (let* ((c (aref colors (min i 5)))
+                                 (norm (list :background "#2b2b2b" :foreground c))
+                                 (inv  (list :background c :foreground "#2b2b2b")))
+                            ;; sep before tab
+                            (nconc result-elts
+                                   (list (propertize dir 'face (if (cl-oddp i) norm inv)) elt))
+                            (setq dir (if (string= dir "") "" ""))
+                            ;; cap after tab
+                            (if (cl-oddp i)
+                                (nconc result-elts
+                                       (list (propertize (concat "█" dir) 'face norm)))
+                              (nconc result-elts
+                                     (list (propertize "█" 'face norm)
+                                           (propertize dir 'face inv))))))
+              (setq elts result-elts)))
           (setf (nth 2 result) elts)))
       result))
 
