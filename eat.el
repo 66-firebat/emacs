@@ -1,114 +1,130 @@
 ;; -*- lexical-binding: t; -*-
-;;
-;; =============================================================================
-;;  eat.el — Terminal Emulator Configuration
-;;
-;;  Accounts for the statuscolumn's letter label + separator width when
-;;  calculating the terminal width, preventing content overflow.
-;;
-;;  The statuscolumn adds 7 chars per line via `line-prefix' overlays:
-;;    "  a  ┃ " = 7 chars (leading space + mark/space + space + label + 2 spaces + separator)
-;;
-;;  `window-max-chars-per-line' accounts for fringes, scrollbars, and
-;;  margins (left-margin-width) but NOT for `line-prefix' overlays.
-;;  We subtract 7 to compensate.
-;; =============================================================================
+
+(defun my/eat-msg (fmt &rest args)
+  (message "[eat] %s" (apply #'format fmt args)))
+
+;; ── Terminal Width ──────────────────────────────────────────────────────────
 
 (defun my/eat-adjust-window-size (process windows)
-  "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
-PROCESS is the Eat shell process.  WINDOWS is the list of windows
-displaying the process's buffer.
-Computes terminal width directly from window geometry, avoiding
-unreliable `window-max-chars-per-line' caching across buffers."
-  (let ((window (car windows)))
-    (when (window-live-p window)
-      (let* ((buf (window-buffer window))
-             ;; Total window width (all columns, including margins).
-             (total (window-total-width window))
-             ;; Window margin columns — protect against nil from either side.
-             (margins (window-margins window))
-             (left-margin (if margins (or (car margins) 0) 0))
-             (right-margin (if margins (or (cdr margins) 0) 0))
-             ;; Text area = total minus margin columns.
-             (text-width (- total left-margin right-margin))
-             ;; Statuscolumn line-prefix width.
-             (lp (buffer-local-value 'line-prefix buf))
-             (lp-width (if (and (stringp lp) (> (length lp) 0))
-                           (string-width lp)
-                         8))
-             ;; Terminal content width = text area minus line-prefix.
-             (term-width (max (- text-width lp-width) 10))
-             ;; Also compute via window-max-chars-per-line for comparison.
-             (mcl (window-max-chars-per-line window)))
-        ;; Debug: log measured values.
-        (condition-case nil
-            (let ((msg (format "total=%d margins=(%d,%d) text=%d lp=%d mcl=%d term=%d"
-                               total left-margin right-margin text-width
-                               lp-width mcl term-width)))
-              (with-temp-buffer
-                (insert (format-time-string "%H:%M:%S")
-                        (format " eat-adjust: %s\n" msg))
-                (append-to-file (point-min) (point-max) "/tmp/eat-debug.log"))
-              (message "eat-adjust: %s" msg))
-          (error nil))
-        (cons term-width
-              (window-text-height window))))))
+  "Return terminal size (WIDTH . HEIGHT) for the eat window."
+  (condition-case err
+      (let ((window (car windows)))
+        (when (window-live-p window)
+          (let* ((buf (window-buffer window))
+                 (mcl (window-max-chars-per-line window))
+                 (lp (buffer-local-value 'line-prefix buf))
+                 (lpw (if (and (stringp lp) (> (length lp) 0))
+                          (string-width lp) 0))
+                 (tw (max (- mcl lpw) 1)))
+            (my/eat-msg "WIDTH window=%s mcl=%d lp=%S(lpw=%d) → term=%d"
+                         (window-buffer window) mcl lp lpw tw)
+            (cons tw (window-text-height window)))))
+    (error
+     (my/eat-msg "WIDTH-ERROR: %s" (error-message-string err))
+     nil)))
+
+;; ── Fix Width via Timer ─────────────────────────────────────────────────────
+;; eat-exec-hook fires BEFORE the buffer has a window (display happens
+;; after eat-exec returns).  We schedule a 0-second timer to correct
+;; the width once the window exists.
+
+(defun my/eat-fix-width-now ()
+  "Correct terminal width RIGHT NOW. Must be called from eat buffer."
+  (when-let* ((term (bound-and-true-p eat-terminal))
+              (win (get-buffer-window (current-buffer) t))
+              (sz (my/eat-adjust-window-size nil (list win)))
+              (old (ignore-errors (eat-term-size term))))
+    (when (/= (car old) (car sz))
+      (my/eat-msg "RESIZE: %d → %d" (car old) (car sz))
+      (eat-term-resize term (car sz) (cdr sz))
+      (when-let ((proc (eat-term-parameter term 'eat--process)))
+        (ignore-errors (signal-process (process-id proc) 'SIGWINCH))))))
+
+(defun my/eat-schedule-fix (&rest _)
+  "Schedule terminal width correction after window appears."
+  (my/eat-msg "SCHEDULE-FIX: buf=%s" (buffer-name))
+  (run-with-timer 0.1 nil
+                  (lambda (buf)
+                    (when (buffer-live-p buf)
+                      (with-current-buffer buf
+                        (my/eat-msg "TIMER-FIRE: buf=%s" (buffer-name))
+                        (my/eat-fix-width-now))))
+                  (current-buffer)))
+
+;; ── C0 Filter + Buffer Tracer ──────────────────────────────────────────────
+
+(defun my/eat-strip-c0 (fn terminal output)
+  "Strip unhandled C0 bytes, then process and log buffer state."
+  (condition-case err
+      (let* ((n0 (length output))
+             (cleaned (cl-remove-if
+                       (lambda (c)
+                         (and (<= c 31) (/= c 9) (/= c 10) (/= c 13)
+                              (not (memq c '(?\a ?\b ?\n ?\v ?\f ?\r
+                                              ?\C-n ?\C-o ?\e ?\0)))))
+                       output))
+             (n1 (length cleaned))
+             (nrem (- n0 n1)))
+        (when (> nrem 0)
+          (my/eat-msg "C0: removed %d (SOH=%d STX=%d) in %d-byte chunk"
+                       nrem
+                       (cl-count-if (lambda (c) (= c 1)) output)
+                       (cl-count-if (lambda (c) (= c 2)) output)
+                       n0))
+        (funcall fn terminal cleaned)
+        ;; Log buffer rows
+        (let* ((buf (ignore-errors (eat--t-term-buffer terminal)))
+               (w (car (ignore-errors (eat-term-size terminal))))
+               (rows '()))
+          (when buf
+            (with-current-buffer buf
+              (let ((beg (ignore-errors (eat-term-beginning terminal)))
+                    (end (ignore-errors (eat-term-end terminal))))
+                (when (and beg end)
+                  (save-excursion
+                    (goto-char beg)
+                    (while (< (point) end)
+                      (push (- (line-end-position) (point)) rows)
+                      (forward-line 1))))))
+            (let ((r (nreverse rows)))
+              (my/eat-msg "BUF: w=%d rows=%d lens=%s"
+                           w (length r)
+                           (if (<= (length r) 12) r
+                             (append (cl-subseq r 0 6) (list :::)
+                                     (cl-subseq r -3 nil))))))))
+    (error
+     (my/eat-msg "C0-ERROR: %s" (error-message-string err))
+     (funcall fn terminal output))))
+
+;; ── use-package ─────────────────────────────────────────────────────────────
 
 (use-package eat
   :ensure t
   :config
   (setq eat-enable-shell-integration t)
   (setq eat-default-input-mode 'semi-char)
-
-  ;; Disable eat's shell prompt annotation margin — sc-mode already
-  ;; manages the left margin for the statuscolumn.  Having both eat
-  ;; and sc-mode fight over left-margin-width causes erratic terminal
-  ;; width calculations and line-wrapping corruption on the second
-  ;; spawned eat buffer.
   (setq eat-enable-shell-prompt-annotation nil)
-
-  ;; Unlimited scrollback: eat normally keeps only the most recent
-  ;; 131072 characters (128 KB) of terminal output and deletes older
-  ;; content.  Setting to nil disables this truncation entirely, so
-  ;; you can scroll back through the ENTIRE terminal session history.
   (setq eat-term-scrollback-size nil)
-
-  ;; Eat's directory tracking updates `default-directory' when the shell
-  ;; reports its working directory via OSC 7.  For this to work, your
-  ;; .bashrc needs shell integration:
-  ;;
-  ;;   [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && \
-  ;;     source "$EAT_SHELL_INTEGRATION_DIR/bash"
-  ;;
-  ;; Once set up, `default-directory' in eat buffers tracks `cd' commands.
-  ;; `my/dired-from-eat' uses this to open dired in the eat terminal's
-  ;; current directory.
 
   (add-hook 'eat-mode-hook
             (lambda ()
+              (my/eat-msg "MODE-HOOK: buf=%s lp=%S"
+                           (buffer-name)
+                           (buffer-local-value 'line-prefix (current-buffer)))
               (setq-local window-adjust-process-window-size-function
                           #'my/eat-adjust-window-size)))
 
-  ;; Cursor snapping: when entering insert mode in an eat terminal,
-  ;; move Emacs point to the terminal's actual cursor position.
-  ;; Without this, Evil's point can be anywhere in the buffer (from
-  ;; normal-mode navigation), but the terminal expects input at its
-  ;; own cursor location.  `eat-term-display-cursor' returns the
-  ;; Emacs buffer position corresponding to the terminal's cursor.
-  (defun my/eat-snap-cursor-on-insert ()
-    "Move point to terminal cursor when entering insert state.
-Added to `evil-insert-state-entry-hook'."
-    (when (and (derived-mode-p 'eat-mode)
-               (bound-and-true-p eat-terminal))
-      (let ((pos (condition-case nil
-                     (eat-term-display-cursor eat-terminal)
-                   (error nil))))
-        (when (and pos (<= (point-min) pos (point-max))
-                   (/= pos (point)))
-          (goto-char pos)))))
+  ;; Schedule width correction 100ms after shell spawns (when window exists)
+  (add-hook 'eat-exec-hook #'my/eat-schedule-fix)
+  (remove-hook 'eat-update-hook #'sc--on-eat-update)
 
+  (defun my/eat-snap-cursor-on-insert ()
+    (when (and (derived-mode-p 'eat-mode) (bound-and-true-p eat-terminal))
+      (let ((pos (ignore-errors (eat-term-display-cursor eat-terminal))))
+        (when (and pos (<= (point-min) pos (point-max)) (/= pos (point)))
+          (goto-char pos)))))
   (add-hook 'evil-insert-state-entry-hook #'my/eat-snap-cursor-on-insert))
 
-(provide 'eat)
+(advice-add 'eat-term-process-output :around #'my/eat-strip-c0)
 
-;; eat.el ends here
+(provide 'eat)

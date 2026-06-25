@@ -481,14 +481,6 @@
   (load (expand-file-name "centaur-tabs.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  13j.  Eat — Terminal Emulator
-;; ---------------------------------------------------------------------------
-
-(let ((real-dir (file-name-directory
-                 (file-truename (or load-file-name buffer-file-name)))))
-  (load (expand-file-name "eat.el" real-dir)))
-
-;; ---------------------------------------------------------------------------
 ;;  13k.  Pi Coding Agent — AI-assisted coding frontend
 ;; ---------------------------------------------------------------------------
 ;; Pi is a coding agent CLI. pi-coding-agent wraps it in an Emacs interface
