@@ -158,16 +158,16 @@ buffers in the same group."
                           (setf (nth i elts)
                                 (propertize stripped 'face
                                             (list :background bg :foreground "#2b2b2b"))))))
-          ;; Alwats add    after the first tab, then   + tab for each subsequent
+          ;; Always add    after the first tab, then   + tab for each subsequent
           (let ((result-elts (list (car elts)
-                                  (propertize "" 'face
+                                  (propertize " " 'face
                                               (list :background (aref colors 0) :foreground "#2b2b2b")))))
             (cl-loop for i from 1 for elt in (cdr elts)
                      do (let* ((c (aref colors (min i 5))))
                           (nconc result-elts
                                  (list (propertize "" 'face (list :background c :foreground "#2b2b2b"))
                                        elt
-                                       (propertize "" 'face
+                                       (propertize " " 'face
                                                    (list :background c :foreground "#2b2b2b"))))))
             (setq elts result-elts))
           (setf (nth 2 result) elts)))
