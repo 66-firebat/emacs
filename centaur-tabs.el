@@ -252,7 +252,11 @@ with a +N overflow indicator."
                               n-dropped (1+ n-dropped))))))
                 ;; Add +N indicator if any tabs were dropped
                 (when (> n-dropped 0)
-                  (let ((overflow-str (format "  %d " n-dropped)))
+                  (let* ((nf-digits [nil "󰲠" "󰲢" "󰲤" "󰲦" "󰲨" "󰲪" "󰲬" "󰲮" "󰲰"])
+                         (digit-str (if (<= n-dropped 9)
+                                       (aref nf-digits n-dropped)
+                                     "󰲲"))
+                         (overflow-str (format " %s " digit-str)))
                     ;; Place overflow indicator at slot 4 (replacing new-tab button)
                     (setcar (nthcdr 4 result)
                             (propertize overflow-str
