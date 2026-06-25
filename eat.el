@@ -1,15 +1,15 @@
 ;; -*- lexical-binding: t; -*-
 
-;; ── Debug ──────────────────────────────────────────────────────────────────
-(defun my/eat-msg (fmt &rest args)
-  (message "[eat] %s" (apply #'format fmt args)))
-
 ;; ── Terminal Width ──────────────────────────────────────────────────────────
+;; eat-exec calls (eat-term-resize ... (window-max-chars-per-line) ...) which
+;; sets the terminal too wide (130) — it doesn't account for statuscolumn's
+;; 7-char line-prefix.  We advice eat-term-resize to detect this and subtract
+;; the line-prefix width so the terminal is correct from the start.
 
 (defun my/eat-adjust-window-size (process windows)
   "Return terminal size (WIDTH . HEIGHT) accounting for statuscolumn.
-Uses `window-max-chars-per-line' minus `line-prefix' width."
-  (condition-case err
+Used by window--adjust-process-windows for ongoing resize handling."
+  (condition-case nil
       (let ((window (car windows)))
         (when (window-live-p window)
           (let* ((mcl (window-max-chars-per-line window))
@@ -17,85 +17,24 @@ Uses `window-max-chars-per-line' minus `line-prefix' width."
                  (lpw (if (and (stringp lp) (> (length lp) 0))
                           (string-width lp) 0))
                  (tw (max (- mcl lpw) 1)))
-            (my/eat-msg "WIDTH mcl=%d lp=%S(lpw=%d) term=%d"
-                         mcl lp lpw tw)
             (cons tw (window-text-height window)))))
-    (error
-     (my/eat-msg "WIDTH-ERROR: %s" (error-message-string err))
-     nil)))
+    (error nil)))
 
-;; ── Fix Width via Timer ─────────────────────────────────────────────────────
-;; eat-exec-hook fires BEFORE the buffer has a window (display happens
-;; after eat-exec returns).  We schedule a 0-second timer to correct
-;; the width once the window exists.
-
-(defun my/eat-fix-width-now ()
-  "Correct terminal width RIGHT NOW. Must be called from eat buffer."
-  (when-let* ((term (bound-and-true-p eat-terminal))
-              (win (get-buffer-window (current-buffer) t))
-              (sz (my/eat-adjust-window-size nil (list win)))
-              (old (ignore-errors (eat-term-size term))))
-    (when (/= (car old) (car sz))
-      (my/eat-msg "RESIZE %d → %d" (car old) (car sz))
-      (eat-term-resize term (car sz) (cdr sz))
-      (when-let ((proc (eat-term-parameter term 'eat--process)))
-        (ignore-errors (signal-process (process-id proc) 'SIGWINCH))))))
-
-(defun my/eat-schedule-fix (&rest _)
-  "Schedule terminal width correction after window appears."
-  (my/eat-msg "SCHEDULE-FIX buf=%s" (buffer-name))
-  (run-with-timer 0.1 nil
-                  (lambda (buf)
-                    (when (buffer-live-p buf)
-                      (with-current-buffer buf
-                        (my/eat-msg "TIMER-FIRE buf=%s" (buffer-name))
-                        (my/eat-fix-width-now))))
-                  (current-buffer)))
-
-;; ── C0 Filter + Buffer Tracer ──────────────────────────────────────────────
-;; Shell prompts embed \001 (SOH) and \002 (STX) bytes as readline
-;; non-printing markers.  Eat's terminal treats these as width-2 printable
-;; chars, corrupting cursor position.  This filter strips C0 bytes that
-;; eat doesn't explicitly handle.
-
-(defun my/eat-strip-c0 (fn terminal output)
-  "Strip unhandled C0 control chars from OUTPUT before eat processes them."
-  (let* ((n0 (length output))
-         (cleaned (cl-remove-if
-                   (lambda (c)
-                     (and (<= c 31) (/= c 9) (/= c 10) (/= c 13)
-                          (not (memq c '(?\a ?\b ?\n ?\v ?\f ?\r
-                                          ?\C-n ?\C-o ?\e ?\0)))))
-                   output))
-         (n1 (length cleaned))
-         (nrem (- n0 n1)))
-    (when (> nrem 0)
-      (my/eat-msg "C0-STRIP removed=%d (SOH=%d STX=%d) in %d-byte chunk"
-                   nrem
-                   (cl-count-if (lambda (c) (= c 1)) output)
-                   (cl-count-if (lambda (c) (= c 2)) output)
-                   n0))
-    (funcall fn terminal cleaned)
-    ;; Log buffer rows
-    (let* ((buf (ignore-errors (eat--t-term-buffer terminal)))
-           (w (car (ignore-errors (eat-term-size terminal))))
-           (rows '()))
-      (when buf
-        (with-current-buffer buf
-          (let ((beg (ignore-errors (eat-term-beginning terminal)))
-                (end (ignore-errors (eat-term-end terminal))))
-            (when (and beg end)
-              (save-excursion
-                (goto-char beg)
-                (while (< (point) end)
-                  (push (- (line-end-position) (point)) rows)
-                  (forward-line 1))))))
-        (let ((r (nreverse rows)))
-          (my/eat-msg "BUF w=%d rows=%d lens=%s"
-                       w (length r)
-                       (if (<= (length r) 12) r
-                         (append (cl-subseq r 0 6) (list :::)
-                                 (cl-subseq r -3 nil)))))))))
+(defun my/eat-resize-correct-line-prefix (fn terminal width height)
+  "When eat resizes to window-max-chars-per-line, subtract line-prefix."
+  (let* ((buf (ignore-errors (eat--t-term-buffer terminal)))
+         (corrected width))
+    (when buf
+      (let* ((win (get-buffer-window buf t))
+             (mcl (and win (window-max-chars-per-line win)))
+             (lp (buffer-local-value 'line-prefix buf))
+             (lpw (if (and (stringp lp) (> (length lp) 0))
+                      (string-width lp) 0)))
+        ;; If this resize matches the uncorrected window width,
+        ;; subtract the line-prefix to account for the statuscolumn.
+        (when (and mcl (> lpw 0) (= width mcl))
+          (setq corrected (max (- width lpw) 1)))))
+    (funcall fn terminal corrected height)))
 
 ;; ── use-package ─────────────────────────────────────────────────────────────
 
@@ -109,19 +48,11 @@ Uses `window-max-chars-per-line' minus `line-prefix' width."
 
   (add-hook 'eat-mode-hook
             (lambda ()
-              (my/eat-msg "MODE-HOOK buf=%s lp=%S"
-                           (buffer-name)
-                           (buffer-local-value 'line-prefix (current-buffer)))
               (setq-local window-adjust-process-window-size-function
                           #'my/eat-adjust-window-size)))
 
-  ;; Schedule width correction after shell spawns (window may not exist yet)
-  (add-hook 'eat-exec-hook #'my/eat-schedule-fix)
-
-  ;; Remove sc--on-eat-update — post-command-hook handles overlay updates
   (remove-hook 'eat-update-hook #'sc--on-eat-update)
 
-  ;; Cursor snapping on insert mode entry
   (defun my/eat-snap-cursor-on-insert ()
     (when (and (derived-mode-p 'eat-mode) (bound-and-true-p eat-terminal))
       (let ((pos (ignore-errors (eat-term-display-cursor eat-terminal))))
@@ -129,7 +60,8 @@ Uses `window-max-chars-per-line' minus `line-prefix' width."
           (goto-char pos)))))
   (add-hook 'evil-insert-state-entry-hook #'my/eat-snap-cursor-on-insert))
 
-;; ── C0 filter advice ───────────────────────────────────────────────────────
-(advice-add 'eat-term-process-output :around #'my/eat-strip-c0)
+;; ── Advice ──────────────────────────────────────────────────────────────────
+;; Fix initial terminal width by intercepting eat-term-resize
+(advice-add 'eat-term-resize :around #'my/eat-resize-correct-line-prefix)
 
 (provide 'eat)
