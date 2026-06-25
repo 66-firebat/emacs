@@ -36,14 +36,19 @@ Computes terminal width as `window-body-width' minus the statuscolumn's
              (term-width (max (- chars-per-line lp-width) 10)))
         ;; Debug: log measured values to a file.
         (condition-case nil
-            (let ((msg (format "raw=%d body=%d mcl=%d lp='%s'(%d) term=%d"
-                               raw-window-width body-width chars-per-line
-                               (if (stringp lp) lp "[nil]") lp-width term-width)))
+            (let* ((margins (window-margins window))
+                   (lm (car margins))
+                   (rm (cdr margins))
+                   (lm-buf (buffer-local-value 'left-margin-width buf))
+                   (msg (format "raw=%d body=%d mcl=%d lp='%s'(%d) term=%d margins=(%s,%d,%d)"
+                                raw-window-width body-width chars-per-line
+                                (if (stringp lp) lp "[nil]") lp-width term-width
+                                (if margins (format "%S" margins) "nil")
+                                (if (numberp lm) lm -1) lm-buf)))
               (with-temp-buffer
                 (insert (format-time-string "%H:%M:%S")
                         (format " eat-adjust: %s\n" msg))
                 (append-to-file (point-min) (point-max) "/tmp/eat-debug.log"))
-              ;; Also print to stderr if possible
               (message "eat-adjust: %s" msg))
           (error nil))
         (cons term-width

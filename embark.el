@@ -32,14 +32,20 @@
 
 ;; ── Kill buffer directly from consult-buffer ────────────────────
 ;; C-d kills the selected buffer and keeps the minibuffer open.
+;; C-u C-d kills the buffer and restarts consult-buffer (closes & reopens).
 ;; Defined inside with-eval-after-load so vertico symbols are available.
 
 (with-eval-after-load 'vertico
-  (defun my/consult-kill-buffer ()
+  (defun my/consult-kill-buffer (&optional arg)
     "Kill the buffer at point in the minibuffer completion list.
+
 Kills aggressively: no prompts, no confirmations, no save queries.
-Refreshes the candidate list in place via vertico."
-    (interactive)
+
+With \\[universal-argument] (C-u), close and restart consult-buffer
+after killing (old behavior).
+Without prefix (C-d), refresh the candidate list in place and keep
+the minibuffer open."
+    (interactive "P")
     (let* ((raw (vertico--candidate))
            ;; Strip consult's internal "tofu" characters from the candidate
            (candidate (if (and raw (fboundp 'consult--tofu-strip))
@@ -51,15 +57,36 @@ Refreshes the candidate list in place via vertico."
           (let ((kill-buffer-query-functions nil))
             (set-buffer-modified-p nil)
             (kill-buffer)))
-        ;; Exit the minibuffer and re-run consult-buffer via a timer.
-        ;; This gives consult-buffer a completely fresh start,
-        ;; guaranteeing the killed buffer won't appear.
-        (let ((input (minibuffer-contents)))
-          (abort-recursive-edit)
-          (run-with-idle-timer 0.01 nil
-            (lambda ()
-              (let ((consult--buffer-history (list input)))
-                (consult-buffer))))))))
+        (if arg
+            ;; C-u: close the minibuffer and re-run consult-buffer via a timer.
+            ;; This gives consult-buffer a completely fresh start,
+            ;; guaranteeing the killed buffer won't appear.
+            (let ((input (minibuffer-contents)))
+              (abort-recursive-edit)
+              (run-with-idle-timer 0.01 nil
+                (lambda ()
+                  (let ((consult--buffer-history (list input)))
+                    (consult-buffer)))))
+          ;; C-d: keep the minibuffer open.  Remove the killed buffer from
+          ;; vertico's candidate list by index and refresh the display.
+          ;; We can't use vertico--update here because the completion table
+          ;; is static (pre-computed by consult--multi at session start).
+          ;; Using delq on the nth element avoids any string-comparison
+          ;; pitfalls with tofu characters or text properties.
+          (let ((removed (nth vertico--index vertico--candidates)))
+            (setq vertico--candidates (delq removed vertico--candidates)
+                  vertico--total (length vertico--candidates))
+            ;; Adjust index: if we removed the last candidate, go to prompt
+            ;; position (-1); if we removed a candidate at or above the
+            ;; current index, step back by one.
+            (if (zerop vertico--total)
+                (setq vertico--index -1)
+              (when (>= vertico--index vertico--total)
+                (setq vertico--index (max 0 (1- vertico--total)))))
+            ;; Refresh the display directly, bypassing vertico--update
+            (vertico--prompt-selection)
+            (vertico--display-count)
+            (vertico--display-candidates (vertico--arrange-candidates)))))))
 
   ;; Bind C-d in vertico-map (active during all Vertico completion sessions,
   ;; including consult-buffer). The function safely ignores non-buffer
