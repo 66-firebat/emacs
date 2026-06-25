@@ -18,33 +18,33 @@
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.
-Computes terminal width as `window-body-width' minus the statuscolumn's
-`line-prefix' width, measured dynamically via `string-width'."
+Computes terminal width directly from window geometry, avoiding
+unreliable `window-max-chars-per-line' caching across buffers."
   (let ((window (car windows)))
     (when (window-live-p window)
       (let* ((buf (window-buffer window))
-             ;; Measure available width.
-             (chars-per-line (window-max-chars-per-line window))
-             ;; Read the buffer-local line-prefix (set by sc--init).
+             ;; Total window width (all columns, including margins).
+             (total (window-total-width window))
+             ;; Window margin columns — protect against nil from either side.
+             (margins (window-margins window))
+             (left-margin (if margins (or (car margins) 0) 0))
+             (right-margin (if margins (or (cdr margins) 0) 0))
+             ;; Text area = total minus margin columns.
+             (text-width (- total left-margin right-margin))
+             ;; Statuscolumn line-prefix width.
              (lp (buffer-local-value 'line-prefix buf))
              (lp-width (if (and (stringp lp) (> (length lp) 0))
                            (string-width lp)
                          8))
-             ;; Also measure the raw window width for comparison.
-             (raw-window-width (window-width window))
-             (body-width (window-body-width window))
-             (term-width (max (- chars-per-line lp-width) 10)))
-        ;; Debug: log measured values to a file.
+             ;; Terminal content width = text area minus line-prefix.
+             (term-width (max (- text-width lp-width) 10))
+             ;; Also compute via window-max-chars-per-line for comparison.
+             (mcl (window-max-chars-per-line window)))
+        ;; Debug: log measured values.
         (condition-case nil
-            (let* ((margins (window-margins window))
-                   (lm (car margins))
-                   (rm (cdr margins))
-                   (lm-buf (buffer-local-value 'left-margin-width buf))
-                   (msg (format "raw=%d body=%d mcl=%d lp='%s'(%d) term=%d margins=(%s,%d,%d)"
-                                raw-window-width body-width chars-per-line
-                                (if (stringp lp) lp "[nil]") lp-width term-width
-                                (if margins (format "%S" margins) "nil")
-                                (if (numberp lm) lm -1) lm-buf)))
+            (let ((msg (format "total=%d margins=(%d,%d) text=%d lp=%d mcl=%d term=%d"
+                               total left-margin right-margin text-width
+                               lp-width mcl term-width)))
               (with-temp-buffer
                 (insert (format-time-string "%H:%M:%S")
                         (format " eat-adjust: %s\n" msg))
@@ -59,6 +59,13 @@ Computes terminal width as `window-body-width' minus the statuscolumn's
   :config
   (setq eat-enable-shell-integration t)
   (setq eat-default-input-mode 'semi-char)
+
+  ;; Disable eat's shell prompt annotation margin — sc-mode already
+  ;; manages the left margin for the statuscolumn.  Having both eat
+  ;; and sc-mode fight over left-margin-width causes erratic terminal
+  ;; width calculations and line-wrapping corruption on the second
+  ;; spawned eat buffer.
+  (setq eat-enable-shell-prompt-annotation nil)
 
   ;; Unlimited scrollback: eat normally keeps only the most recent
   ;; 131072 characters (128 KB) of terminal output and deletes older
