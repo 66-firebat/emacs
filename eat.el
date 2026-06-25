@@ -18,11 +18,36 @@
   "Return terminal size (WIDTH . HEIGHT) accounting for the statuscolumn.
 PROCESS is the Eat shell process.  WINDOWS is the list of windows
 displaying the process's buffer.
-Subtracts 7 for the letter label + separator prefix."
+Computes terminal width as `window-body-width' minus the statuscolumn's
+`line-prefix' width, measured dynamically via `string-width'."
   (let ((window (car windows)))
     (when (window-live-p window)
-      (cons (max (- (window-max-chars-per-line window) 7) 10)
-            (window-text-height window)))))
+      (let* ((buf (window-buffer window))
+             ;; Measure available width.
+             (chars-per-line (window-max-chars-per-line window))
+             ;; Read the buffer-local line-prefix (set by sc--init).
+             (lp (buffer-local-value 'line-prefix buf))
+             (lp-width (if (and (stringp lp) (> (length lp) 0))
+                           (string-width lp)
+                         8))
+             ;; Also measure the raw window width for comparison.
+             (raw-window-width (window-width window))
+             (body-width (window-body-width window))
+             (term-width (max (- chars-per-line lp-width) 10)))
+        ;; Debug: log measured values to a file.
+        (condition-case nil
+            (let ((msg (format "raw=%d body=%d mcl=%d lp='%s'(%d) term=%d"
+                               raw-window-width body-width chars-per-line
+                               (if (stringp lp) lp "[nil]") lp-width term-width)))
+              (with-temp-buffer
+                (insert (format-time-string "%H:%M:%S")
+                        (format " eat-adjust: %s\n" msg))
+                (append-to-file (point-min) (point-max) "/tmp/eat-debug.log"))
+              ;; Also print to stderr if possible
+              (message "eat-adjust: %s" msg))
+          (error nil))
+        (cons term-width
+              (window-text-height window))))))
 
 (use-package eat
   :ensure t
