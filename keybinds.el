@@ -50,19 +50,22 @@ line mode, go to last line)."
 
 ;; ── Avy — jump to any visible character ────────────────────────
 ;; f + two chars → jump to that exact character pair
-;; S + two chars → jump to that exact character pair
+;; S + two chars → jump to that exact character pair (overridden below)
 ;; g s           → jump to a visible line number
 (general-def '(normal visual visual-block visual-line)
   "f" 'sc-avy-goto-char-2
-  "S" 'avy-goto-char-2
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
 
-;; ── s — consult-line search ─────────────────────────────────────
-;; Overrides evil-substitute (delete char + insert).  Use x then i
-;; to achieve the same effect, or SPC s s for the leader-key path.
+;; ── s / S — consult search ──────────────────────────────────────
+;; s   → consult-line   (search current buffer)
+;; S   → consult-ripgrep (search project with ripgrep)
+;;
+;; Overrides: s = evil-substitute, S = avy-goto-char-2.
+;; Use x then i to substitute a char, or f for two-char Avy jumps.
 (general-def '(normal visual visual-block visual-line)
-  "s" 'consult-line)
+  "s" 'consult-line
+  "S" 'consult-ripgrep)
 
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
 ;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
