@@ -378,7 +378,7 @@ Result is cached per project path."
 ;; indicator icons.
 
 (defun my/centaur-tabs-tab-label (tab)
-  "Return a label for TAB.  Modified buffers get 󱍸 prefix."
+  "Return a label for TAB.  Modified buffers get 󰐗 prefix (in #ff4400)."
   (let* ((tabset (centaur-tabs-current-tabset))
          (selected-p (and tabset (centaur-tabs-selected-p tab tabset)))
          (buf (car tab))
@@ -386,7 +386,9 @@ Result is cached per project path."
          (modified (and (buffer-modified-p buf)
                         (not (with-current-buffer buf
                                (derived-mode-p 'vterm-mode)))))
-         (prefix (if modified "󱍸 " "")))
+         (prefix (if modified
+                    (propertize "󰐗 " 'face '(:foreground "#ff4400"))
+                  "")))
     (if selected-p
         (format " %s%s" prefix bufname)
       (format " %s%s " prefix bufname))))
