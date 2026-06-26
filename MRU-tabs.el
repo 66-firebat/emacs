@@ -171,13 +171,6 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
                   (group    (car grp-list))
                   ((not (assoc group groups))))
         (push (cons group (list buf)) groups))
-      ;; Also sync MRU: add new buffers, remove killed
-      (when-let* ((grp-list (my/tab-group-for-buffer buf))
-                  (group    (car grp-list))
-                  (mru-cell (assoc group mru))
-                  ((not (memq buf (cdr mru-cell)))))
-        ;; Buffer exists in group but not in MRU — add to end of MRU
-        (setcdr mru-cell (nconc (cdr mru-cell) (list buf))))
       (when-let* ((grp-list (my/tab-group-for-buffer buf))
                   (group    (car grp-list))
                   ((not (assoc group mru))))
@@ -186,8 +179,18 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
     ;; Remove killed buffers from groups and MRU
     (dolist (cell groups)
       (setcdr cell (cl-remove-if-not #'buffer-live-p (cdr cell))))
-    (dolist (cell mru)
-      (setcdr cell (cl-remove-if-not #'buffer-live-p (cdr cell))))
+    ;; Rebuild MRU from global buffer-list order (true usage order)
+    (setq mru
+          (mapcar (lambda (gcell)
+                    (let ((group (car gcell)))
+                      (cons group
+                            (cl-remove-if-not
+                             (lambda (b)
+                               (and (buffer-live-p b)
+                                    (let ((g (my/tab-group-for-buffer b)))
+                                      (and g (equal (car g) group)))))
+                             all-bufs))))
+                  groups))
     ;; Remove empty groups
     (setq groups (cl-remove-if (lambda (c) (null (cdr c))) groups))
     (setq mru (cl-remove-if (lambda (c) (null (cdr c))) mru))
