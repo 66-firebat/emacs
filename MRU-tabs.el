@@ -379,21 +379,21 @@ With BACKWARD non-nil, cycle to the previous tab."
         (when (buffer-live-p next)
           (switch-to-buffer next t))))))
 
-(defun my/ct--forward ()
+(defun my/MRU-tabs-forward ()
   "Cycle to the next tab."
   (interactive)
   (my/ct--cycle))
 
-(defun my/ct--backward ()
+(defun my/MRU-tabs-backward ()
   "Cycle to the previous tab."
   (interactive)
   (my/ct--cycle t))
 
 ;; ── Keybindings ─────────────────────────────────────────────
 (when (boundp 'MRU-tabs-mode-map)
-  (define-key MRU-tabs-mode-map (kbd "<M-tab>") #'my/ct--forward)
-  (define-key MRU-tabs-mode-map (kbd "C-<tab>") #'my/ct--forward)
-  (define-key MRU-tabs-mode-map (kbd "C-S-<iso-lefttab>") #'my/ct--backward))
+  (define-key MRU-tabs-mode-map (kbd "<M-tab>") #'my/MRU-tabs-forward)
+  (define-key MRU-tabs-mode-map (kbd "C-<tab>") #'my/MRU-tabs-forward)
+  (define-key MRU-tabs-mode-map (kbd "C-S-<iso-lefttab>") #'my/MRU-tabs-backward))
 
 ;; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 9 — Activation & hooks                             ║

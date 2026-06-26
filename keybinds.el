@@ -8,12 +8,13 @@
 ;; =============================================================================
 
 ;; ── Tab navigation (all modes) ──────────────────────────────
-;; C-h / C-l to switch tabs via centaur-tabs.
+;; C-h / C-l to switch tabs via MRU-tabs.
 ;; Window navigation uses Evil's built-in C-w h/j/k/l.
 (general-def '(normal insert visual)
-  "C-h" 'centaur-tabs-backward
-  "C-l" 'centaur-tabs-forward
-  "C-u" 'evil-scroll-up)
+  "C-h"  'my/MRU-tabs-backward
+  "C-l"  'my/MRU-tabs-forward
+  "C-c C-n" 'my/MRU-tabs-forward
+  "C-u"  'evil-scroll-up)
 
 ;; ── Dired from anywhere (all modes) ───────────────────────
 ;; C-e opens dired in the eat terminal's current working directory.
