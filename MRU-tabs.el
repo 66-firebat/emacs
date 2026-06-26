@@ -261,21 +261,58 @@ SELECTED-P non-nil means this is the selected tab."
          (sel-buf  (cdr (assoc cur-group selected)))
          (tabs     bufs))
     (when tabs
-      (let ((result  (list (my/ct--tab-label (car tabs)
-                                             (eq (car tabs) sel-buf))))
-            (prev-selected (eq (car tabs) sel-buf)))
-        (dolist (b (cdr tabs))
-          (let ((selected-p (eq b sel-buf)))
-            (nconc result
-                   (list (propertize "  " 'face
-                                     (my/ct--tab-face prev-selected))
-                         (my/ct--tab-label b selected-p)))
-            (setq prev-selected selected-p)))
-        ;; Trailing  on last tab, colored with that tab's face
-        (nconc result
-               (list (propertize "  " 'face
-                                 (my/ct--tab-face prev-selected))))
-        result))))
+      (let* ((overflow-face 'my/ct-overflow)
+             (group-str   (my/ct--group-icon window))
+             (icon-width  (if group-str (string-width group-str) 0))
+             (avail       (- (window-width window) icon-width))
+             ;; Build tab segments: (label-str . sep-str)
+             (segments (mapcar (lambda (b)
+                                 (let ((sel-p (eq b sel-buf)))
+                                   (cons (my/ct--tab-label b sel-p)
+                                         (propertize "  " 'face
+                                                     (my/ct--tab-face sel-p)))))
+                               tabs)))
+        ;; Trim rightmost non-selected tabs until everything fits
+        ;; (including the overflow indicator that will be appended)
+        (let* ((hidden 0)
+               (total-w (apply '+ (mapcar (lambda (s)
+                                            (+ (string-width (car s))
+                                               (string-width (cdr s))))
+                                          segments))))
+          (while (and (> (+ total-w
+                            (string-width (format "  +%d" (1+ hidden))))
+                         avail)
+                      (> (length segments) 1)
+                      (< hidden 999))
+            (let ((last-s (car (last segments))))
+              (setq total-w (- total-w
+                               (string-width (car last-s))
+                               (string-width (cdr last-s)))
+                    segments (nbutlast segments)
+                    hidden    (1+ hidden))))
+          ;; Build flat result list, then append overflow indicator if any
+          (if (null segments)
+              ;; Shouldn't happen, but be safe
+              nil
+            (let* ((acc (list (car (car segments))))
+                   (prev-seg (car segments)))
+              (dolist (s (cdr segments))
+                (nconc acc (list (cdr prev-seg) (car s)))
+                (setq prev-seg s))
+              ;; trailing sep for last visible tab
+              (nconc acc (list (cdr prev-seg)))
+              ;; Add overflow indicator if tabs were hidden
+              (when (> hidden 0)
+                (let ((overflow-obj (propertize (format "  +%d" hidden)
+                                                'face overflow-face)))
+                  ;; If even selected tab + overflow won't fit, show 󰘕
+                  (if (> (+ (string-width (car (car segments)))
+                            (string-width (cdr (car segments)))
+                            (string-width (format "  +%d" hidden)))
+                         avail)
+                      (setq acc (list (propertize "󰘕" 'face overflow-face)))
+                    (nconc acc (list overflow-obj)))))
+              acc)))))))
 
 ;; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 6 — Group icon rendering                           ║
