@@ -13,7 +13,6 @@
 (general-def '(normal insert visual)
   "C-h"  'my/MRU-tabs-backward
   "C-l"  'my/MRU-tabs-forward
-  "C-c C-n" 'my/MRU-tabs-forward
   "C-u"  'evil-scroll-up)
 
 ;; ── Dired from anywhere (all modes) ───────────────────────
