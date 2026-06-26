@@ -96,48 +96,80 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
             (list (car catch-all))))))))                   ; OPEN 1 (list) CLOSE 3
 
 ;; ╔══════════════════════════════════════════════════════════════╗
-;; ║  SECTION 3 — Per-window data (window parameter)            ║
+;; ║  SECTION 3 — Per-window data (window parameter, copy-once) ║
 ;; ╚══════════════════════════════════════════════════════════════╝
 
-;; Window parameter 'my/MRU-tabs-data stores a plist:
-;;   :groups    — alist (group-name . (buffer buffer ...))       — all live buffers
-;;   :selected  — alist (group-name . buffer)                    — selected buffer
-;;   :mru       — alist (group-name . (buffer buffer ...))       — MRU-ordered list
-;;   :scroll    — alist (group-name . integer)                   — scroll offset
+;; Each window gets its own data via window-parameter.
+;; All reads are immediately copy-tree'd to eliminate any chance
+;; of cons-cell sharing between windows.
 
 (defun my/ct--get-data (&optional window)
-  "Return the tab-data plist for WINDOW (default selected-window)."
-  (or (window-parameter (or window (selected-window)) 'my/MRU-tabs-data)
-      (let ((data (list :groups nil :selected nil :mru nil :scroll nil)))
-        (set-window-parameter (or window (selected-window))
-                              'my/MRU-tabs-data data)
-        data)))
+  "Return the tab-data plist for WINDOW."
+  (or (copy-tree (window-parameter (or window (selected-window)) 'my/MRU-tabs-data))
+      (list :groups nil :selected nil :mru nil :scroll nil)))
+
+(defun my/ct--put-data (plist &optional window)
+  "Store PLIST as tab data for WINDOW."
+  (set-window-parameter (or window (selected-window)) 'my/MRU-tabs-data
+                        (copy-tree plist)))
 
 (defun my/ct--groups (&optional window)
-  "Return the groups alist for WINDOW."
   (plist-get (my/ct--get-data window) :groups))
 
 (defun my/ct--selected (&optional window)
-  "Return the selected alist for WINDOW."
   (plist-get (my/ct--get-data window) :selected))
 
 (defun my/ct--mru (&optional window)
-  "Return the MRU alist for WINDOW."
   (plist-get (my/ct--get-data window) :mru))
 
-(defun my/ct--put-groups (groups &optional window)
-  "Set the groups alist for WINDOW to GROUPS."
-  (plist-put (my/ct--get-data window) :groups groups))
-
-(defun my/ct--put-selected (selected &optional window)
-  "Set the selected buffer alist for WINDOW to SELECTED."
-  (plist-put (my/ct--get-data window) :selected selected))
-
-(defun my/ct--put-mru (mru &optional window)
-  "Set the MRU alist for WINDOW to MRU."
-  (plist-put (my/ct--get-data window) :mru mru))
-
-;; ╔══════════════════════════════════════════════════════════════╗
+(defun my/ct--update-window (window)
+  "Refresh tab data for WINDOW: add new buffers, promote current, save."
+  (let* ((data     (my/ct--get-data window))
+         (groups   (or (plist-get data :groups) '()))
+         (mru      (or (plist-get data :mru) '()))
+         (selected (or (plist-get data :selected) '()))
+         (all-bufs (my/ct--visible-buffers))
+         (win-buf  (window-buffer window)))
+    ;; Groups: rebuild from all-bufs (fresh list each time)
+    (let ((ng '()))
+      (dolist (buf all-bufs)
+        (when-let* ((grp (car (my/tab-group-for-buffer buf))))
+          (let ((cell (assoc grp ng)))
+            (if cell
+                (setcdr cell (append (cdr cell) (list buf)))
+              (push (cons grp (list buf)) ng)))))
+      (setq groups ng))
+    ;; MRU: keep stored order, filter killed, append new, promote current
+    (setq mru (cl-remove-if (lambda (c) (null (cdr c)))
+              (mapcar (lambda (c)
+                        (cons (car c)
+                              (cl-remove-if-not #'buffer-live-p (cdr c))))
+                      mru)))
+    (dolist (buf all-bufs)
+      (when-let* ((grp (car (my/tab-group-for-buffer buf))))
+        (let ((mcell (assoc grp mru)))
+          (if mcell
+              (unless (memq buf (cdr mcell))
+                (setcdr mcell (append (cdr mcell) (list buf))))
+            (push (cons grp (list buf)) mru)))))
+    (setq mru (cl-remove-if (lambda (c) (null (cdr c))) mru))
+    (let* ((win-group (car (my/tab-group-for-buffer win-buf)))
+           (mcell (and win-group (assoc win-group mru))))
+      (when (and mcell (memq win-buf (cdr mcell)))
+        (let ((rest (delq win-buf (cdr mcell))))
+          (setcdr mcell (cons win-buf rest)))))
+    ;; Selection
+    (let ((win-group (car (my/tab-group-for-buffer win-buf))))
+      (setq selected (mapcar
+                      (lambda (gcell)
+                        (let* ((g (car gcell))
+                               (pref (if (and win-group (equal g win-group)
+                                              (memq win-buf (cdr gcell)))
+                                         win-buf (car (cdr gcell)))))
+                          (cons g pref)))
+                      groups)))
+    ;; Save with copy-tree for complete isolation
+    (my/ct--put-data (list :groups groups :selected selected :mru mru :scroll nil) window)));; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 4 — Buffer list + group maintenance               ║
 ;; ╚══════════════════════════════════════════════════════════════╝
 
@@ -152,73 +184,6 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
                                           '("*scratch*" "*Messages*"))))
                     b))                                                  ; CLOSE 2 (when, mapcar body)
                 (buffer-list))))                                         ; CLOSE 1 (mapcar) CLOSE 1 (delq)
-
-(defun my/ct--update-window (window)
-  "Refresh tab data for WINDOW: sync buffers, add new, remove killed."
-  (let* ((data      (my/ct--get-data window))
-         (groups    (or (plist-get data :groups) '()))
-         (selected  (or (plist-get data :selected) '()))
-         (mru       (or (plist-get data :mru) '()))
-         (all-bufs  (my/ct--visible-buffers)))
-    ;; For each buffer, determine its group and add to groups if needed
-    (dolist (buf all-bufs)
-      (when-let* ((grp-list (my/tab-group-for-buffer buf))
-                  (group    (car grp-list))
-                  (cell     (assoc group groups)))
-        (unless (memq buf (cdr cell))
-          (setcdr cell (nconc (cdr cell) (list buf)))))
-      (when-let* ((grp-list (my/tab-group-for-buffer buf))
-                  (group    (car grp-list))
-                  ((not (assoc group groups))))
-        (push (cons group (list buf)) groups))
-      (when-let* ((grp-list (my/tab-group-for-buffer buf))
-                  (group    (car grp-list))
-                  ((not (assoc group mru))))
-        ;; New group for MRU — initialise with this buffer
-        (push (cons group (list buf)) mru)))
-    ;; Remove killed buffers from groups and MRU
-    (dolist (cell groups)
-      (setcdr cell (cl-remove-if-not #'buffer-live-p (cdr cell))))
-    ;; Rebuild MRU from global buffer-list order (true usage order)
-    (setq mru
-          (mapcar (lambda (gcell)
-                    (let ((group (car gcell)))
-                      (cons group
-                            (cl-remove-if-not
-                             (lambda (b)
-                               (and (buffer-live-p b)
-                                    (let ((g (my/tab-group-for-buffer b)))
-                                      (and g (equal (car g) group)))))
-                             all-bufs))))
-                  groups))
-    ;; Remove empty groups
-    (setq groups (cl-remove-if (lambda (c) (null (cdr c))) groups))
-    (setq mru (cl-remove-if (lambda (c) (null (cdr c))) mru))
-    ;; Update selection: prefer window's current buffer, fall back to first
-    (let ((win-buf (window-buffer window))
-          (win-group (car (my/tab-group-for-buffer (window-buffer window)))))
-      (dolist (cell groups)
-        (let* ((group (car cell))
-               (sel-cell (assoc group selected))
-               (preferred (if (and win-buf win-group
-                                   (eq group win-group)
-                                   (memq win-buf (cdr cell)))
-                              win-buf
-                            (car (cdr cell)))))
-          (unless (and sel-cell (eq (cdr sel-cell) preferred))
-            (setq selected (assoc-delete-all group selected))
-            (push (cons group preferred) selected)))))
-    ;; Move window's current buffer to front of its MRU list
-    (when-let* ((win-buf (window-buffer window))
-                (group   (car (my/tab-group-for-buffer win-buf)))
-                (mcell   (assoc group mru))
-                ((memq win-buf (cdr mcell))))
-      (let ((rest (delq win-buf (cdr mcell))))
-        (setcdr mcell (cons win-buf rest))))
-    ;; Save
-    (my/ct--put-groups groups window)
-    (my/ct--put-selected selected window)
-    (my/ct--put-mru mru window)))
 
 (defun my/ct--update-all-windows ()
   "Refresh tab data for every live window."
@@ -251,9 +216,15 @@ SELECTED-P non-nil means this is the selected tab."
   (if selected-p 'my/ct-tab-selected 'my/ct-tab-unselected))
 
 (defun my/ct--render-tabbar (window)
-  "Build the tab bar header for WINDOW.  Returns a list of strings."
-  (my/ct--update-window window)
-  (let* ((data     (my/ct--get-data window))
+  "Build the tab bar header for WINDOW.  Returns a list of strings.
+Initializes window data on first call (e.g., after split).
+The MRU is only updated by post-command-hook in the focused window."
+  (let* ((raw      (my/ct--get-data window))
+         (data     (if (plist-get raw :mru)
+                       raw
+                     ;; First call for this window — initialize
+                     (progn (my/ct--update-window window)
+                            (my/ct--get-data window))))
          (groups   (plist-get data :groups))
          (selected (plist-get data :selected))
          (mru      (plist-get data :mru))
@@ -421,9 +392,9 @@ With BACKWARD non-nil, cycle to the previous tab."
                 '(:eval (my/ct--eval-tabbar)))))                       ; OPEN 2 (:eval, list) CLOSE 2
 
 ;; ── Window deletion cleanup ─────────────────────────────────
-(add-hook 'window-deletions-functions                                  ; OPEN 1 (add-hook)
-          (lambda (win)                                                ; OPEN 1 (lambda)
-            (set-window-parameter win 'my/MRU-tabs-data nil)))     ; CLOSE 2 (lambda, add-hook)
+(add-hook 'window-deletions-functions
+          (lambda (win)
+            (set-window-parameter win 'my/MRU-tabs-data nil)))
 
 ;; ── Post-command live update ────────────────────────────────
 (defun my/ct--force-update ()
