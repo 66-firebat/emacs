@@ -16,62 +16,27 @@
   (centaur-tabs-headline-match)
 
   ;; ── Tab line format ──────────────────────────────────────────
-  ;; Override the default display-line format: group icon box
-  ;; followed by our custom tab line function.
   (let ((fmt-var (symbol-value 'centaur-tabs-display-line-format)))
     (set-default fmt-var
                  `((:eval (my/centaur-tabs-group-icon))
                    (:eval (my/centaur-tabs-line)))))
 
-  ;; ── Tab label — active/inactive indicator ──────────────────
-  ;; Each tab is prepended with  (active) or  (inactive) so
-  ;; you can tell at a glance which window's tab bar is focused.
+  ;; ── Tab label ──────────────────────────────────────────────
   (setq centaur-tabs-tab-label-function 'my/centaur-tabs-tab-label)
-
-  ;; ── Tab style (terminal-friendly) ────────────────────────────
-  ;; "bar" is cleanest in terminal; "rounded", "chamfer", "slant"
-  ;; also work.  Avoid "wave" and "zigzag" in -nw mode.
   (setq centaur-tabs-style "bar")
-
-
-
-  ;; ── File icons (handled inside the custom label function) ───
-  ;; Built-in icon rendering is disabled — the active/inactive
-  ;; indicator (/) is prepended before the Nerd Font file icon
-  ;; inside `my/centaur-tabs-tab-label' so the order is:
-  ;;     statuscolumn.el   (not    statuscolumn.el)
   (setq centaur-tabs-set-icons nil)
   (setq centaur-tabs-plain-icons nil)
   (setq centaur-tabs-gray-out-icons 'buffer)
-
-  ;; ── Selected-tab indicator bar ───────────────────────────────
-  (setq centaur-tabs-set-bar nil)           ;; No active tab bar
-
-  ;; ── Edge margins — remove default leading/trailing spaces ──
-  ;; centaur-tabs-left/right-edge-margin default to " " which adds
-  ;; unwanted padding on every tab.  Set to empty to eliminate it.
+  (setq centaur-tabs-set-bar nil)
   (setq centaur-tabs-left-edge-margin "")
   (setq centaur-tabs-right-edge-margin "")
-
-  ;; ── Close button & modified marker ───────────────────────────
-  ;; Built-in marker (⏺) is disabled.  The modified indicator 󱍸
-  ;; is handled inside `my/centaur-tabs-tab-label' instead.
   (setq centaur-tabs-set-close-button nil)
   (setq centaur-tabs-set-modified-marker nil)
-
-  ;; ── Tab height (terminal-friendly) ───────────────────────────
   (setq centaur-tabs-height 24)
   (setq centaur-tabs-bar-height (+ 8 centaur-tabs-height))
-
-  ;; ── New-tab button — disabled; replaced by overflow indicator ─
   (setq centaur-tabs-show-new-tab-button nil)
 
-  ;; ── Buffer grouping & ordering ───────────────────────────────
-  ;; Group buffers by major-mode category.  Each group maintains a
-  ;; creation-ordered list.  The current buffer is always the
-  ;; leftmost tab, followed by up to 6 buffers spawned after it.
-
-
+  ;; ── Buffer grouping ──────────────────────────────────────────
   (defvar my/tab-group-categories
     '(("Code"    ""   emacs-lisp-mode lisp-mode python-mode go-mode
                  rust-mode java-mode c-mode c++-mode c-ts-mode
@@ -94,23 +59,16 @@ The \"Buffers\" entry is a catch-all for unmatched modes.")
             (bname (buffer-name)))
         (when (and (not (string-prefix-p " " bname))
                    (not (member bname '("*scratch*" "*Messages*"))))
-          ;; Check explicit categories (modes start at 3rd element)
           (catch 'found
             (dolist (cat my/tab-group-categories)
               (when (and (cddr cat) (memq mode (cddr cat)))
                 (throw 'found (car cat))))
-            ;; Catch-all: "Buffers"
             (when-let ((catch-all (assoc "Buffers" my/tab-group-categories)))
               (car catch-all)))))))
 
-  ;; Tab ordering: current buffer is always leftmost.  Subsequent tabs
-  ;; are the most-recently-accessed buffers in the same group, in MRU
-  ;; order (Emacs' native (buffer-list) ordering).
-
+  ;; ── Tab ordering: current buffer always leftmost (MRU) ─────
   (defun my/tab-buffer-list ()
-    "Return all buffers in the same group as the current buffer.
-Current buffer leftmost, followed by remaining same-group buffers
-in MRU order (from `buffer-list')."
+    "Return all buffers in the same group as the current buffer."
     (let* ((cur (current-buffer))
            (group (my/tab-group-for-buffer cur)))
       (when group
@@ -127,19 +85,9 @@ in MRU order (from `buffer-list')."
   (setq centaur-tabs-buffer-list-function #'my/tab-buffer-list)
   (setq centaur-tabs-cycle-scope 'tabs)
 
-  ;; ── MRU tab ordering ─────────────────────────────────────────
-  ;; The current buffer is always the leftmost tab, followed by
-  ;; the remaining tabs in most-recently-accessed (MRU) order.
-  ;; Two advices ensure this:
-  ;;
-  ;; 1. On centaur-tabs-buffer-update-groups — re-sorts tabsets
-  ;;    to MRU after centaur-tabs rebuilds them alphabetically.
-  ;; 2. On centaur-tabs-line — re-sorts the current tabset to MRU
-  ;;    right before rendering (catch-all / safety net).
-
+  ;; ── MRU sort helper ─────────────────────────────────────────
   (defun my/centaur-tabs--sort-tabset-mru (tabset)
-    "Sort tabs in TABSET into MRU order.
-Current buffer first, rest by (buffer-list) order."
+    "Sort tabs in TABSET into MRU order. Current buffer first."
     (let* ((cur (current-buffer))
            (tabs (symbol-value tabset))
            (mru (seq-filter
@@ -156,38 +104,82 @@ Current buffer first, rest by (buffer-list) order."
         (set tabset ordered)
         (centaur-tabs-set-template tabset nil))))
 
-  (defun my/centaur-tabs--after-update-groups (orig-fn)
-    "Wrap `centaur-tabs-buffer-update-groups' to re-sort tabsets
-into MRU order after centaur-tabs rebuilds them alphabetically."
-    (let ((result (funcall orig-fn)))
-      ;; Re-sort every tabset into MRU order
-      (dolist (buf (buffer-list))
-        (let* ((group (my/tab-group-for-buffer buf))
-               (tabset (and group (centaur-tabs-get-tabset group))))
-          (when tabset
-            (my/centaur-tabs--sort-tabset-mru tabset))))
-      result))
+  ;; ── Per-window tab ordering state ───────────────────────────
+  ;; Each window tracks its own buffer order independently.
 
+  (defvar my/centaur-tabs--window-state (make-hash-table :test 'eq)
+    "Hash table window → ((GROUP-NAME . (BUFFER ...)) ...).
+Each window stores its own ordered buffer list per group.")
+
+  (defun my/centaur-tabs--on-window-deleted (window)
+    "Clean up per-window state for deleted WINDOW."
+    (remhash window my/centaur-tabs--window-state))
+  (add-hook 'window-deletions-functions #'my/centaur-tabs--on-window-deleted)
+
+  ;; ── Before rendering: use per-window ordering ──────────────
   (defun my/centaur-tabs--reorder-tabset-mru (orig-fn)
     "Around advice for `centaur-tabs-line'.
-Re-sort the current tabset into MRU order right before rendering."
-    (let* ((tabset (centaur-tabs-current-tabset t)))
-      (when tabset
-        (my/centaur-tabs--sort-tabset-mru tabset)))
-    (funcall orig-fn))
+Each window has its OWN independent tab order.  The global tabset
+value is temporarily set to this window's order for rendering."
+    (let* ((tabset (centaur-tabs-current-tabset t))
+           (global-vals (and tabset (symbol-value tabset)))
+           (win (selected-window))
+           (cur (current-buffer))
+           (group (and tabset (symbol-name tabset)))
+           (state (gethash win my/centaur-tabs--window-state))
+           (pw-entry (and state group (assoc group state)))
+           (pw-buffers (and pw-entry (cdr pw-entry)))
+           pw-tabs)
+      (when (and tabset group global-vals)
+        ;; Initialize per-window state from global on first access
+        (unless pw-buffers
+          (setq pw-buffers (mapcar #'car global-vals))
+          (let ((new-entry (cons group pw-buffers)))
+            (if state
+                (setcdr state (cons new-entry (cdr state)))
+              (puthash win (list new-entry) my/centaur-tabs--window-state))))
+        ;; Sync: add buffers from global, remove killed buffers
+        (dolist (tab global-vals)
+          (let ((buf (car tab)))
+            (unless (memq buf pw-buffers)
+              (setq pw-buffers (nconc pw-buffers (list buf))))))
+        (setq pw-buffers (cl-remove-if-not
+                          (lambda (b) (and (buffer-live-p b)
+                                           (cl-find b global-vals :key #'car)))
+                          pw-buffers))
+        ;; Sort to MRU: current buffer first, rest by (buffer-list)
+        (let* ((ordered (cons cur (cl-remove-if (lambda (b) (eq b cur)) pw-buffers)))
+               (final (delq nil
+                            (mapcar (lambda (b)
+                                      (when (memq b pw-buffers) b))
+                                    ordered))))
+          (setq pw-buffers final)
+          ;; Update per-window state
+          (let ((entry (assoc group (gethash win my/centaur-tabs--window-state))))
+            (when entry (setcdr entry pw-buffers)))
+          ;; Convert to tab cons cells for centaur-tabs
+          (setq pw-tabs (delq nil
+                              (mapcar (lambda (b)
+                                        (cl-find b global-vals :key #'car))
+                                      pw-buffers)))
+          (when pw-tabs
+            ;; Set global tabset to per-window order for rendering
+            (set tabset (copy-tree pw-tabs))
+            (centaur-tabs-set-template tabset nil)
+            (centaur-tabs-select-tab-value (current-buffer) tabset)
+            ;; Debug
+            (message "CT: win=%s cur=%s pw=%s"
+                     (sxhash win)
+                     (buffer-name cur)
+                     (mapconcat #'buffer-name pw-buffers ", "))))
+        (funcall orig-fn))))
 
-  (advice-add 'centaur-tabs-buffer-update-groups
-              :around #'my/centaur-tabs--after-update-groups)
   (advice-remove 'centaur-tabs-line #'my/centaur-tabs--reorder-tabset)
   (advice-add 'centaur-tabs-line :around #'my/centaur-tabs--reorder-tabset-mru)
 
-  ;; Apply gradient colors AFTER centaur-tabs has applied its own faces.
-  ;; This overrides the face on the final propertized strings.
+  ;; ── Apply colors with overflow truncation ──────────────────
   (defun my/centaur-tabs--apply-gradient (orig-fn tabset)
-    "Replace centaur-tabs' tab faces with a uniform #5C5C5C background
-and #ff4400 foreground.
-Then truncate overflowing tabs and replace the new-tab button
-with a +N overflow indicator."
+    "Apply uniform colors and truncate overflowing tabs."
     (let* ((result (funcall orig-fn tabset))
            (tabs (and tabset (symbol-value tabset)))
            (bg-color "#5C5C5C")
@@ -207,7 +199,6 @@ with a +N overflow indicator."
                               (propertize stripped 'face
                                           (list :background bg :foreground fg-color)))))
           ;; Build result-elts with separators.
-          ;; The separator after each tab matches that tab's background.
           (let* ((sel-bg "#8C8C8C")
                  (first-tab-bg (if (and tabs (centaur-tabs-selected-p (car tabs) tabset))
                                    sel-bg bg-color))
@@ -224,8 +215,6 @@ with a +N overflow indicator."
                                        (propertize " " 'face
                                                    (list :background tab-bg :foreground fg-color))))))
             ;; ── Terminal width overflow truncation ─────────────
-            ;; Measure total width of group-icon + all tab elts.
-            ;; Drop rightmost tabs until it fits, showing +N.
             (when my/centaur-tabs-overflow-adapt
               (let* ((icon-str (my/centaur-tabs-group-icon))
                      (icon-width (if icon-str (string-width icon-str) 0))
@@ -234,10 +223,8 @@ with a +N overflow indicator."
                      (n-tabs (length tabs))
                      (n-dropped 0)
                      (total-width icon-width))
-                ;; Measure total width of all result-elts
                 (dolist (elt result-elts)
                   (cl-incf total-width (string-width elt)))
-                ;; Drop tabs from the right until it fits or only 1 left
                 (while (and (> total-width avail-width)
                             (> n-tabs 1)
                             result-elts)
@@ -250,14 +237,12 @@ with a +N overflow indicator."
                               total-width (- total-width w-sep w-tab w-trail)
                               n-tabs (1- n-tabs)
                               n-dropped (1+ n-dropped))))))
-                ;; Add +N indicator if any tabs were dropped
                 (when (> n-dropped 0)
                   (let* ((nf-digits [nil "󰲠" "󰲢" "󰲤" "󰲦" "󰲨" "󰲪" "󰲬" "󰲮" "󰲰"])
                          (digit-str (if (<= n-dropped 9)
                                        (aref nf-digits n-dropped)
                                      "󰲲"))
                          (overflow-str (format " %s " digit-str)))
-                    ;; Place overflow indicator at slot 4 (replacing new-tab button)
                     (setcar (nthcdr 4 result)
                             (propertize overflow-str
                                         'face 'my/centaur-tabs-overflow-face))))))
@@ -268,8 +253,7 @@ with a +N overflow indicator."
   (advice-add 'centaur-tabs-line-format :around #'my/centaur-tabs--apply-gradient)
 
   (defun my/centaur-tabs-group-icon ()
-    "Return group icon + live line number + active tab indicator.
-All use the same fixed colors (orange bg, dark fg, bold)."
+    "Return group icon + live line number."
     (when-let* ((group (my/tab-group-for-buffer (current-buffer)))
                 (entry (assoc group my/tab-group-categories))
                 (icon (cadr entry)))
@@ -279,76 +263,42 @@ All use the same fixed colors (orange bg, dark fg, bold)."
                 (propertize (format "  %4s " line) 'face face)
                 (propertize "" 'face face)))))
 
-
-
   ;; ── Tab navigation keybindings ───────────────────────────────
-  ;; Non-Evil bindings for tab cycling (works from any state).
   (define-key centaur-tabs-mode-map (kbd "<M-tab>") 'centaur-tabs-forward)
   (define-key centaur-tabs-mode-map (kbd "C-<tab>") 'centaur-tabs-forward)
   (define-key centaur-tabs-mode-map (kbd "C-S-<iso-lefttab>") 'centaur-tabs-backward)
 
-  ;; Clean up any previously-registered advice from earlier
-  ;; versions of this file.
+  ;; Clean up previously-registered advice.
   (advice-remove 'centaur-tabs-line #'my/centaur-tabs--trim-tab-trailing)
   (advice-remove 'centaur-tabs-line-format #'my/centaur-tabs--trim-tabs)
   (advice-remove 'centaur-tabs-line #'my/centaur-tabs--reorder-tabset)
 
-  ;; Clear any cached template so the next redisplay rebuilds it
-  ;; from scratch with the new wrapper.
+  ;; Clear cached template.
   (centaur-tabs-set-template (centaur-tabs-current-tabset) nil)
   (force-window-update (selected-window))
-
-  ;; ── Additional convenience commands ──────────────────────────
-  ;; Jump to a tab by typing a displayed character (ace-jump style)
-  ;; Bound to SPC . in the leader key, but available here too:
-  ;; (centaur-tabs-ace-jump)
   )
 
-;; ── Group label segment ─────────────────────────────────────────
-;; Prepend the current tab group name (with icon) at the leftmost
-;; edge of the centaur-tabs bar, so you always know which group the
-;; current buffer belongs to at a glance.
-;;
-;; This is called from the display-line-format as an :eval form,
-;; so it runs on every redisplay — project branch lookups are
-;; cached and only refreshed on buffer switches.
-
 ;; ── Group label face ───────────────────────────────────────────
-;; defface ensures the face exists with proper defaults before the
-;; firebat theme overrides it via custom-theme-set-faces in theme.el.
-
 (defface my/centaur-tabs-group-face
   '((t (:foreground "#ff4400" :background "#2b2b2b" :weight bold)))
   "Face for the centaur-tabs group name segment."
   :group 'centaur-tabs)
 
 ;; ── Overflow indicator ────────────────────────────────────────
-
 (defvar my/centaur-tabs-width-factor 1.0
-  "Multiplier for perceived terminal width.
-The effective width for tab overflow calculations is
-(* (window-width) `my/centaur-tabs-width-factor').
-Set to a value lower than 1.0 to reserve space at the right edge.")
-
+  "Multiplier for perceived terminal width.")
 (defvar my/centaur-tabs-overflow-adapt t
-  "When non-nil, tabs that overflow the terminal width are
-truncated and a +N overflow indicator is shown.")
-
+  "When non-nil, truncate overflowing tabs.")
 (defface my/centaur-tabs-overflow-face
   '((t (:foreground "#ff4400" :background "#2b2b2b" :weight bold)))
-  "Face for the +N overflow indicator."
+  "Face for the overflow indicator."
   :group 'centaur-tabs)
 
 ;; ── Git branch cache ───────────────────────────────────────────
-;; Invalidate the cache whenever the current buffer changes so that
-;; git is only invoked once per buffer switch, not on every redraw.
-
 (defvar my/centaur-tabs--branch-cache (make-hash-table :test 'equal)
-  "Hash table mapping project path → git branch name.
-Cleared on buffer switch.")
-
+  "Hash table mapping project path → git branch name.")
 (defvar my/centaur-tabs--last-buffer nil
-  "Last buffer for which `my/centaur-tabs--branch-cache' was valid.")
+  "Last buffer for which branch cache was valid.")
 
 (defun my/centaur-tabs--invalidate-branch-cache ()
   "Clear the branch cache when the current buffer changes."
@@ -357,11 +307,9 @@ Cleared on buffer switch.")
     (setq my/centaur-tabs--last-buffer (current-buffer))))
 
 (defun my/centaur-tabs--git-info (project-path)
-  "Return \"branch:hash\" for PROJECT-PATH, or \"󱃓\" on failure.
-Result is cached per project path."
+  "Return \"branch:hash\" for PROJECT-PATH, or \"󱃓\" on failure."
   (let ((cached (gethash project-path my/centaur-tabs--branch-cache 'missing)))
-    (if (not (eq cached 'missing))
-        cached
+    (if (not (eq cached 'missing)) cached
       (let ((result
              (condition-case nil
                  (let* ((branch-str
@@ -387,10 +335,7 @@ Result is cached per project path."
         (puthash project-path result my/centaur-tabs--branch-cache)
         result))))
 
-;; ── Tab label — active tab separator only ─────────────────────
-;; The active tab gets │ on both sides.  No active/inactive
-;; indicator icons.
-
+;; ── Tab label ─────────────────────────────────────────────────
 (defun my/centaur-tabs-tab-label (tab)
   "Return a label for TAB.  Modified buffers get 󰐗 prefix (in #ff4400)."
   (let* ((tabset (centaur-tabs-current-tabset))
@@ -408,35 +353,22 @@ Result is cached per project path."
       (format " %s%s " prefix bufname))))
 
 ;; ── Line number cache ─────────────────────────────────────────
-;; Active tab shows live line number; inactive tabs show a cached
-;; stale value.  Only the active buffer's line number updates in
-;; real time as the cursor moves.
-
 (defvar my/centaur-tabs--line-cache (make-hash-table :test 'eq)
-  "Hash table mapping buffer \\→ last-known line number string.
-Inactive tabs display the cached value so the number stays stale
-until the buffer becomes active again.")
+  "Hash table mapping buffer → last-known line number string.")
 
 (defun my/centaur-tabs--line-number (buf)
-  "Return the line number string for BUF.
-Active buffer gets the live line number; inactive buffers return
-the cached stale value with fallback to 󱃓."
+  "Return the line number string for BUF."
   (if (eq buf (current-buffer))
-      ;; Active buffer — compute live, cache it
       (let ((live (format-mode-line '("%l"))))
         (puthash buf live my/centaur-tabs--line-cache)
         live)
-    ;; Inactive buffer — use stale cached value
     (gethash buf my/centaur-tabs--line-cache "󱃓")))
 
 ;; ── Live update — force tab bar redisplay on every command ────
-;; This makes the active tab's line number update in real time as
-;; the cursor moves.
-
 (defun my/centaur-tabs--force-update ()
-  "Force tab bar redisplay — rebuilds tabset and clears template."
+  "Force tab bar redisplay."
   (when (and centaur-tabs-mode (not (minibufferp)))
-    (centaur-tabs-buffer-update-groups)    ;; Rebuild tabsets (no alphabetical sort)
+    (centaur-tabs-buffer-update-groups)
     (let ((tabset (centaur-tabs-current-tabset)))
       (when tabset
         (centaur-tabs-set-template tabset nil)))
@@ -445,10 +377,6 @@ the cached stale value with fallback to 󱃓."
 (add-hook 'post-command-hook #'my/centaur-tabs--force-update)
 
 ;; ── Trim trailing space ───────────────────────────────────────
-;; centaur-tabs-line-tab (a defsubst) appends " " to every tab
-;; label.  Instead of fighting defsubst inlining, we wrap the
-;; display :eval so we can post-process the format list.
-
 (defun my/centaur-tabs-line ()
   "Like `centaur-tabs-line' but without trailing spaces on tab strings."
   (let ((fmt (centaur-tabs-line)))
@@ -462,27 +390,19 @@ the cached stale value with fallback to 󱃓."
     fmt))
 
 ;; ── Label construction ─────────────────────────────────────────
-
 (defun my/centaur-tabs-group-name ()
-  "Return a propertized string showing the current centaur-tabs group.
-
-For **Project** groups the label shows   <branch>  (or  󱃓  when the
-git branch cannot be determined).  All other groups show their
-standard icon and group name (e.g.   Elisp ,   Common ).
-The tooltip always shows the full group name."
+  "Return a propertized string showing the current centaur-tabs group."
   (my/centaur-tabs--invalidate-branch-cache)
   (let* ((group (or (centaur-tabs-buffer-groups-result)
                     centaur-tabs-common-group-name))
          (tooltip (format "Current group: %s" group))
          (label
           (if (string-match "^Project: \\(.+\\)" group)
-              ;; Project group — show   <branch>  (or  󱃓  on failure)
               (let* ((proj-path (match-string 1 group))
                      (info      (my/centaur-tabs--git-info proj-path)))
                 (if (string= info "󱃓")
                     (format " %s " info)
                   (format "  %s " info)))
-            ;; Non-project group — show standard icon + group name
             (let ((icon (cond ((string-match-p "Elisp" group)   "")
                               ((string-match-p "Magit" group)   "")
                               ((string-match-p "^Shell$" group) "")
