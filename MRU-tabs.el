@@ -57,6 +57,24 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
   "Face for the overflow indicator."
   :group 'MRU-tabs)
 
+(defvar my/ct--overflow-icons
+  [" "       ;; 0 — unused (no overflow)
+   "󰲠"      ;; 1
+   "󰲢"      ;; 2
+   "󰲤"      ;; 3
+   "󰲦"      ;; 4
+   "󰲨"      ;; 5
+   "󰲪"      ;; 6
+   "󰲬"      ;; 7
+   "󰲮"      ;; 8
+   "󰲰"      ;; 9
+   "󰲲"]     ;; 10+ — overflow count > 9
+  "Nerd Font icons for the overflow tab indicator.")
+
+(defun my/ct--overflow-str (count)
+  "Return \" ICON\" for COUNT hidden tabs."
+  (format " %s" (aref my/ct--overflow-icons (min count 10))))
+
 (defface my/ct-modified
   '((t (:foreground "#ff4400")))
   "Face for the modified marker."
@@ -254,7 +272,7 @@ The MRU is only updated by post-command-hook in the focused window."
                                                (string-width (cdr s))))
                                           segments))))
           (while (and (> (+ total-w
-                            (string-width (format "  +%d" (1+ hidden))))
+                            (string-width (my/ct--overflow-str (1+ hidden))))
                          avail)
                       (> (length segments) 1)
                       (< hidden 999))
@@ -277,12 +295,12 @@ The MRU is only updated by post-command-hook in the focused window."
               (nconc acc (list (cdr prev-seg)))
               ;; Add overflow indicator if tabs were hidden
               (when (> hidden 0)
-                (let ((overflow-obj (propertize (format "  +%d" hidden)
+                (let ((overflow-obj (propertize (my/ct--overflow-str hidden)
                                                 'face overflow-face)))
                   ;; If even selected tab + overflow won't fit, show 󰘕
                   (if (> (+ (string-width (car (car segments)))
                             (string-width (cdr (car segments)))
-                            (string-width (format "  +%d" hidden)))
+                            (string-width (my/ct--overflow-str hidden)))
                          avail)
                       (setq acc (list (propertize "󰘕" 'face overflow-face)))
                     (nconc acc (list overflow-obj)))))
