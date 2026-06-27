@@ -19,6 +19,14 @@
   :demand t
   :config
   (doom-modeline-mode 1)
+
+  ;; Face for the git branch/hash segment (fallback default;
+  ;; overridden by the firebat theme via custom-theme-set-faces)
+  (defface doom-modeline-git-branch
+    '((t (:background "#ff4400" :foreground "#2b2b2b")))
+    "Face for the git branch:hash segment in the modeline."
+    :group 'doom-modeline-faces)
+
   ;; Helper: git diff stats string
   (defun my/gitsigns-str ()
     "Return git diff stats: 󰐗 N 󱍷 M 󰅙 K, or 󰵚 for non-VC buffers.
@@ -54,12 +62,50 @@ as changes, not split into insertions+deletions."
               "󰵚"))
         (error "󰵚"))))
 
+  ;; Truncation variable for branch name
+  (defvar my/doom-modeline-git-branch-truncate nil
+    "Maximum length for git branch name in the modeline.
+If nil, the full branch name is displayed without truncation.
+Set to a number (e.g., 20) to truncate branch names to that
+many characters, appending a trailing ellipsis if needed.")
+
+  ;; Helper: git branch info
+  (defun my/get-git-branch-info ()
+    "Return \"<branch name>: <short_hash>\" or \"---\" if not in a git repo.
+Truncates the branch name according to
+`my/doom-modeline-git-branch-truncate'."
+    (if (or (not buffer-file-name)
+            (not (ignore-errors (vc-backend buffer-file-name))))
+        "---"
+      (condition-case nil
+          (let* ((default-directory (file-name-directory buffer-file-name))
+                 (branch (with-temp-buffer
+                           (call-process "git" nil t nil "rev-parse" "--abbrev-ref" "HEAD")
+                           (string-trim (buffer-string))))
+                 (hash (with-temp-buffer
+                         (call-process "git" nil t nil "rev-parse" "--short" "HEAD")
+                         (string-trim (buffer-string)))
+                       ))
+            ;; Apply truncation if configured
+            (when (and my/doom-modeline-git-branch-truncate
+                       (> (length branch) my/doom-modeline-git-branch-truncate))
+              (setq branch (concat (substring branch 0 my/doom-modeline-git-branch-truncate) "…")))
+            (format "%s: %s" branch hash))
+        (error "---"))))
+
   ;; Git diff stats segment
   (doom-modeline-def-segment my-gitsigns
     "Git diff stats:  N  M  K"
     (let ((str (my/gitsigns-str)))
       (when str
         (concat (doom-modeline-spc) str))))
+
+  ;; Git branch & hash segment
+  (doom-modeline-def-segment my-git-branch
+    "Git branch name and short commit hash: <branch>: <hash>"
+    (let ((info (my/get-git-branch-info)))
+      (propertize (concat "█" (doom-modeline-spc) info " ")
+                  'face 'doom-modeline-git-branch)))
 
   ;; Terminal-friendly tweaks
   (setq doom-modeline-height 1)
@@ -88,7 +134,7 @@ as changes, not split into insertions+deletions."
     '(compilation objed-state misc-info project-name persp-name
                   battery grip irc mu4e gnus github debug repl
                   minor-modes input-method indent-info buffer-encoding
-                  process check time))
+                  process check time my-git-branch))
   ;; Apply the redefined modeline
   (doom-modeline-set-modeline 'main t))
 

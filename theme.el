@@ -176,7 +176,7 @@ Background: #2b2b2b  Accent: #ff4400")
  `(doom-modeline-project-dir ((t (:foreground ,firebat-fg-alt))))
  `(doom-modeline-buffer-path ((t (:foreground ,firebat-fg-alt))))
  `(doom-modeline-panel ((t (:background ,firebat-region :foreground ,firebat-fg))))
-
+ `(doom-modeline-git-branch ((t (:background "#ff4400" :foreground "#2b2b2b"))))
 
 
  ;; ═══════════════════════════════════════════════════════════════
