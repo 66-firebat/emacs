@@ -82,7 +82,7 @@ Truncates the branch name according to
 `my/doom-modeline-git-branch-truncate'."
     (if (or (not buffer-file-name)
             (not (ignore-errors (vc-backend buffer-file-name))))
-        "---"
+        " ┃ "
       (condition-case nil
           (let* ((default-directory (file-name-directory buffer-file-name))
                  (branch (with-temp-buffer
@@ -96,7 +96,7 @@ Truncates the branch name according to
             (when (and my/doom-modeline-git-branch-truncate
                        (> (length branch) my/doom-modeline-git-branch-truncate))
               (setq branch (concat (substring branch 0 my/doom-modeline-git-branch-truncate) "…")))
-            (format "%s: %s" branch hash))
+            (format "%s  %s" branch hash))
         (error "---"))))
 
   ;; Git diff stats segment
