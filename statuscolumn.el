@@ -224,7 +224,11 @@ Manages the ESC transient map."
                     (when (<= (match-beginning 0) cur-pos (1- (match-end 0)))
                       (setq current count)))))
               (when current
-                (propertize (if (> current 99) "99+" (format "%3d" current))
+                (propertize (let* ((s (if (> current 99) "99+" (number-to-string current)))
+                                     (pad (- 3 (length s)))
+                                     (left (ash pad -1))
+                                     (right (- pad left)))
+                                (concat (make-string left ?\s) s (make-string right ?\s)))
                             'face 'sc-search-face)))
           (error nil))))))
 
