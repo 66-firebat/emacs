@@ -30,6 +30,8 @@
   "Face for  icon on wrapped CURRENT-line continuation lines.")
 (defface sc-wrap-icon-dim '((t (:foreground "#CCCCCC" :background "#2b2b2b")))
   "Face for  icon on wrapped NON-CURRENT continuation lines.")
+(defface sc-search-face '((t (:background "#ff4400" :foreground "#2b2b2b")))
+  "Face for the Evil search instance counter in the statuscolumn.")
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Helpers
@@ -151,16 +153,101 @@ Built by `sc--build-mark-map' for the current buffer.")
   (advice-add 'avy-action-goto :before
               (lambda (&rest _) (when (fboundp 'evil-set-jump) (evil-set-jump)))))
 
+;; ── Search tracking ────────────────────────────────────────
+
+(defvar-local sc--search-active nil
+  "Non-nil while an Evil search is active (set by advice, sole source of truth).")
+
+(defun sc--search-active-p ()
+  "Return non-nil if an Evil search is currently active."
+  sc--search-active)
+
+(defun sc--search-activate (&rest _)
+  "Activate search tracking."
+  (setq sc--search-active t))
+
+(defun sc--search-deactivate (&rest _)
+  "Deactivate search tracking."
+  (setq sc--search-active nil))
+
+;; Advice on Evil search functions — the sole mechanism for tracking.
+;; Delayed because statuscolumn.el loads before evil.
+(with-eval-after-load 'evil
+  (advice-add 'evil-ex-search :after #'sc--search-activate)
+  (advice-add 'evil-search-incrementally :after #'sc--search-activate)
+  (advice-add 'evil-search :after #'sc--search-activate)
+  (advice-add 'evil-ex-nohighlight :after #'sc--search-deactivate))
+
+(defun sc--search-activate-transient ()
+  "Activate a transient keymap that binds ESC to clear search.
+No global maps are touched."
+  (when sc--search-active
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "ESC")
+        (lambda ()
+          (interactive)
+          (sc--search-deactivate)
+          (when (fboundp 'evil-ex-nohighlight)
+            (evil-ex-nohighlight))))
+      (set-transient-map map (lambda () sc--search-active) nil))))
+
+(defun sc--search-instance-str ()
+  "Return 3-char right-aligned search instance number, or nil.
+Uses `evil-ex-search-pattern' or `isearch-string' for the regex.
+Uses point as current match position.
+Manages the ESC transient map."
+  (when (sc--search-active-p)
+    (sc--search-activate-transient)
+    (let ((regex
+           (or (and (bound-and-true-p evil-ex-search-pattern)
+                    (evil-ex-pattern-regex evil-ex-search-pattern))
+               (and (bound-and-true-p isearch-string)
+                    (not (string= isearch-string ""))
+                    (if isearch-regexp isearch-string
+                      (regexp-quote isearch-string))))))
+      (when regex
+        (condition-case nil
+            (let* ((cur-pos
+                    (or (and (boundp 'evil-ex-search-match-beg)
+                             evil-ex-search-match-beg)
+                        (point)))
+                   (case-fold-search
+                    (if (bound-and-true-p evil-ex-search-pattern)
+                        (evil-ex-pattern-ignore-case evil-ex-search-pattern)
+                      (bound-and-true-p isearch-case-fold-search)))
+                   (current nil))
+              (save-excursion
+                (goto-char (point-min))
+                (let ((count 0))
+                  (while (re-search-forward regex nil t)
+                    (cl-incf count)
+                    (when (<= (match-beginning 0) cur-pos (1- (match-end 0)))
+                      (setq current count)))))
+              (when current
+                (propertize (if (> current 99) "99+" (format "%3d" current))
+                            'face 'sc-search-face)))
+          (error nil))))))
+
 (defun sc--current-str (&optional mark)
-  "Prefix: space + (mark or space) + space + icon + space + ┣ + space.  7 chars."
-  (let ((icon (if sc--jump-active "󰠠" (sc--slice-icon))))
-    (concat (propertize " " 'face 'sc-current-face)
-            (if mark (propertize mark 'face 'sc-current-face)
-              (propertize " " 'face 'sc-current-face))
-            (propertize " " 'face 'sc-current-face)
-            (propertize icon 'face 'sc-current-face)
-            (propertize " " 'face 'sc-current-face)
-            (propertize "┣ " 'face 'sc-bump))))
+  "Prefix: space + (mark or space) + space + icon + space + ┣ + space.  7 chars.
+When a search is active: search(3) + mark + space + ┣ + space.  6 chars."
+  (let* ((search-str (sc--search-instance-str))
+         (icon (sc--slice-icon)))
+    (if search-str
+        ;; Search active — 7-char layout:  + mark + search(3) + ┣ + sp
+        (concat (propertize "" 'face 'sc-search-face)
+                (if mark (propertize mark 'face 'sc-search-face)
+                  (propertize " " 'face 'sc-search-face))
+                search-str
+                (propertize "┣ " 'face 'sc-bump))
+      ;; Normal — 7-char layout: sp + mark/sp + sp + icon + sp + ┣ + sp
+      (concat (propertize " " 'face 'sc-current-face)
+              (if mark (propertize mark 'face 'sc-current-face)
+                (propertize " " 'face 'sc-current-face))
+              (propertize " " 'face 'sc-current-face)
+              (propertize icon 'face 'sc-current-face)
+              (propertize " " 'face 'sc-current-face)
+              (propertize "┣ " 'face 'sc-bump)))))
 
 (defun sc--lab-str (label &optional mark)
   "Prefix: space + (mark or space) + space + label + ┃ + space.  7 chars."
@@ -174,16 +261,14 @@ Built by `sc--build-mark-map' for the current buffer.")
             (propertize "┃ " 'face 'sc-sep))))
 
 (defun sc--sep-str ()
-  "Wrap prefix for non-current continuation lines —  ┃.  7 chars.
-   3 spaces +  + space + ┃ + space, aligned with label position."
+  "Wrap prefix for non-current continuation lines —  ┃.  7 chars."
   (concat (propertize "   " 'face 'sc-sep)
           (propertize "" 'face 'sc-wrap-icon-dim)
           (propertize " " 'face 'sc-sep)
           (propertize "┃ " 'face 'sc-sep)))
 
 (defun sc--bump-str ()
-  "Wrap prefix for current continuation lines —  ┣.  7 chars.
-   3 spaces +  + space + ┣ + space, aligned with label position."
+  "Wrap prefix for current continuation lines —  ┣.  7 chars."
   (concat (propertize "   " 'face 'sc-bump)
           (propertize "" 'face 'sc-wrap-icon)
           (propertize " " 'face 'sc-bump)
