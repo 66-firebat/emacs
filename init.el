@@ -68,6 +68,7 @@
 (my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
 
 ;; ── Misc ────────────────────────────────────────────────────────────────────
+
 (my/load-module "pi.el")             ;; AI coding agent frontend
 (my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
 (my/load-module "theme.el")          ;; Firebat theme

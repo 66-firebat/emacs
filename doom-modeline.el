@@ -102,10 +102,12 @@ Truncates the branch name according to
   (doom-modeline-def-segment my-git-branch
     "Git branch name and short commit hash: <branch>: <hash>"
     (let ((info (my/get-git-branch-info)))
-      (concat (propertize " "
+      (concat (propertize " "
                           'face '(:foreground "#ff4400" :background "#2b2b2b"))
               (propertize (concat (doom-modeline-spc) info " ")
-                          'face 'doom-modeline-git-branch))))
+                          'face 'doom-modeline-git-branch)
+              (propertize ""
+                          'face '(:foreground "#ff4400" :background "#2b2b2b")))))
 
   ;; Terminal-friendly tweaks
   (setq doom-modeline-height 1)
@@ -130,11 +132,11 @@ Truncates the branch name according to
   ;; Redefine the main modeline.
   (doom-modeline-def-modeline 'main
     '(eldoc bar window-state workspace-name window-number
-            modals matches follow my-buffer-info remote-host)
+            modals matches follow my-git-branch my-gitsigns my-buffer-info remote-host)
     '(compilation objed-state misc-info project-name persp-name
                   battery grip irc mu4e gnus github debug repl
                   minor-modes input-method indent-info buffer-encoding
-                  process check time my-gitsigns my-git-branch))
+                  process check time))
   ;; Apply the redefined modeline
   (doom-modeline-set-modeline 'main t))
 
