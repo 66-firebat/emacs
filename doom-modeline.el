@@ -29,33 +29,41 @@
 
   ;; Helper: git diff stats string
   (defun my/gitsigns-str ()
-    "Return git diff stats:  N  M  K, or 󰦕 for non-VC buffers.
-Parses the full diff at hunk level so modifications are counted
-as changes, not split into insertions+deletions."
+    "Return git diff stats:  N  C  K, or 󰦕 for non-VC buffers.
+Hunks with both + and - are counted as changes ()."
     (if (or (not buffer-file-name)
             (not (ignore-errors (vc-backend buffer-file-name))))
         "󰦕 "
       (condition-case nil
           (let* ((file buffer-file-name)
                  (default-directory (file-name-directory file))
-                 (inserts 0) (deletes 0))
+                 (inserts 0) (changes 0) (deletes 0))
             (with-temp-buffer
               (call-process "git" nil t nil "diff" "--" file)
               (goto-char (point-min))
-              ;; Walk through each hunk, counting every +/- line
+              ;; Walk through each hunk
               (while (re-search-forward "^@@ " nil t)
                 (forward-line)
-                (while (and (not (eobp))
-                            (not (looking-at "^@@")))
-                  (cond ((looking-at "^\\+") (cl-incf inserts))
-                        ((looking-at "^-")   (cl-incf deletes)))
-                  (forward-line))))
-            (if (> (+ inserts deletes) 0)
+                (let ((hunk-inserts 0) (hunk-deletes 0))
+                  (while (and (not (eobp))
+                              (not (looking-at "^@@")))
+                    (cond ((looking-at "^\\+") (cl-incf hunk-inserts))
+                          ((looking-at "^-")   (cl-incf hunk-deletes)))
+                    (forward-line))
+                  ;; Match diff-hl: in a mixed hunk, each + line = 1 change.
+                  ;; Pure hunks count individual lines.
+                  (if (and (> hunk-inserts 0) (> hunk-deletes 0))
+                      (cl-incf changes hunk-inserts)
+                    (progn
+                      (cl-incf inserts hunk-inserts)
+                      (cl-incf deletes hunk-deletes))))))
+            (if (> (+ inserts changes deletes) 0)
                 (string-join
                  (delq nil
                        (list
-                        (when (> inserts 0) (format " %d" inserts))
-                        (when (> deletes 0) (format " %d" deletes))))
+                        (when (> inserts 0) (format " %d" inserts))
+                        (when (> changes 0) (format " %d" changes))
+                        (when (> deletes 0) (format " %d" deletes))))
                  " ")
               "󰦕 "))
         (error "󰦕 "))))
@@ -93,7 +101,7 @@ Truncates the branch name according to
 
   ;; Git diff stats segment
   (doom-modeline-def-segment my-gitsigns
-    "Git diff stats:  N  M  K"
+    "Git diff stats:  N  C  K"
     (let ((str (my/gitsigns-str)))
       (when str
         (concat (doom-modeline-spc) str))))
