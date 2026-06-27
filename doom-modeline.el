@@ -31,9 +31,10 @@
   (defun my/gitsigns-str ()
     "Return git diff stats:  N  C  K, or 󰦕 for non-VC buffers.
 Hunks with both + and - are counted as changes ()."
-    (if (or (not buffer-file-name)
-            (not (ignore-errors (vc-backend buffer-file-name))))
-        "󰦕 "
+    ;; Only show in file-visiting buffers (not dired, eat, etc.)
+    (if (not buffer-file-name) nil
+      (if (not (ignore-errors (vc-backend buffer-file-name)))
+          "󰦕 "
       (condition-case nil
           (let* ((file buffer-file-name)
                  (default-directory (file-name-directory file))
@@ -66,7 +67,7 @@ Hunks with both + and - are counted as changes ()."
                         (when (> deletes 0) (format " %d" deletes))))
                  " ")
               "󰦕 "))
-        (error "󰦕 "))))
+        (error "󰦕 ")))))
 
   ;; Truncation variable for branch name
   (defvar my/doom-modeline-git-branch-truncate nil
@@ -82,7 +83,7 @@ Truncates the branch name according to
 `my/doom-modeline-git-branch-truncate'."
     (if (or (not buffer-file-name)
             (not (ignore-errors (vc-backend buffer-file-name))))
-        " ┃ "
+        "---"
       (condition-case nil
           (let* ((default-directory (file-name-directory buffer-file-name))
                  (branch (with-temp-buffer
