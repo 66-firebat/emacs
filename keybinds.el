@@ -149,6 +149,70 @@ Buffer is named like \"0  19950\" (index +  + PID)."
         (current-buffer)))))
 
 ;; ═════════════════════════════════════════════════════════════════
+;;  Eat Compose — Full Emacs buffer for typing into eat
+;; ═════════════════════════════════════════════════════════════════
+;; Opens a temporary buffer where you can write with full Emacs
+;; editing, then sends the text to the eat terminal on C-c C-c.
+
+(defvar-local my/eat-compose-source nil
+  "Buffer of the eat terminal this compose buffer belongs to.")
+
+(define-minor-mode my/eat-compose-mode
+  "Minor mode for composing text to send to an eat terminal.
+\nKeybindings:\n  C-c C-c  — Send text to eat and close\n  C-c C-k  — Cancel and close"
+  :lighter " ✎"
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "C-c C-c") 'my/eat-compose-send)
+            (define-key map (kbd "C-c C-k") 'my/eat-compose-cancel)
+            map)
+  (when my/eat-compose-mode
+    (setq header-line-format
+          " Compose text — C-c C-c to send, C-c C-k to cancel")))
+
+(defun my/eat-compose ()
+  "Open a compose buffer to write text for the current eat terminal.
+\nType your text with full Emacs editing, then:\n  C-c C-c  — Send to eat and close\n  C-c C-k  — Cancel and close"
+  (interactive)
+  (unless (derived-mode-p 'eat-mode)
+    (user-error "Not in an eat terminal buffer"))
+  (let ((source-buf (current-buffer)))
+    (switch-to-buffer (get-buffer-create "*eat-compose*"))
+    (unless (zerop (buffer-size))
+      (erase-buffer))
+    (text-mode)
+    (setq my/eat-compose-source source-buf)
+    (my/eat-compose-mode 1)
+    ;; Start in insert state: type immediately, ESC to use evil nav
+    (evil-insert-state)))
+
+(defun my/eat-compose-send ()
+  "Send the compose buffer text to the eat terminal and close."
+  (interactive)
+  (let* ((text (concat (buffer-string) "\n"))
+         (source my/eat-compose-source)
+         (compose-buf (current-buffer)))
+    ;; Switch to eat buffer and send through its terminal input
+    (when (buffer-live-p source)
+      (switch-to-buffer source)
+      (when (and (derived-mode-p 'eat-mode)
+                 eat-terminal
+                 (fboundp 'eat-term-send-string))
+        (eat-term-send-string eat-terminal text)))
+    ;; Clean up compose buffer
+    (when (buffer-live-p compose-buf)
+      (kill-buffer compose-buf))))
+
+(defun my/eat-compose-cancel ()
+  "Cancel composing and close the buffer."
+  (interactive)
+  (let ((source my/eat-compose-source))
+    (if (and source (buffer-live-p source))
+        (switch-to-buffer source)
+      (switch-to-buffer (other-buffer)))
+    (when (buffer-live-p (get-buffer "*eat-compose*"))
+      (kill-buffer (get-buffer "*eat-compose*")))))
+
+;; ═════════════════════════════════════════════════════════════════
 ;;  SPC b r — Previous Buffer
 ;; ═════════════════════════════════════════════════════════════════
 
@@ -389,6 +453,9 @@ When called from inside dired:
   "t w" '(whitespace-mode :which-key "toggle whitespace")
   "t p" '(pi-coding-agent-toggle :which-key "toggle pi")
 
+  ;; Eat compose
+  "t e" '(my/eat-compose :which-key "eat compose")
+
   ;; Dired
   ;; (removed SPC d d — C-e now handles dired toggling globally)
 
@@ -433,6 +500,11 @@ When called from inside dired:
 
 ;; ── Spawn Eat terminal ────────────────────────────────────────
 (global-set-key (kbd "C-c C-i") 'my/eat-new)
+
+;; ── Eat compose (from inside eat buffer) ─────────────────────
+;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer
+;; read-only).  Use C-c C-m (m=compose/message) instead.
+(define-key global-map (kbd "C-c C-m") 'my/eat-compose)
 
 ;; ── Kill current buffer ───────────────────────────────────────
 (global-set-key (kbd "C-c C-u") 'kill-current-buffer)
