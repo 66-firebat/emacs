@@ -326,7 +326,7 @@ Format:       42 "
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)
          (propertize (format " %s " icon)   'face face)                ; OPEN 1 (propertize)
-         (propertize (format "  %4s " line-str) 'face face)          ; OPEN 1 (propertize)
+         (propertize (format " %5s " line-str) 'face face)          ; OPEN 1 (propertize)
          (propertize "" 'face face))))))                              ; OPEN 1 (propertize) CLOSE 5
 
 ;; ╔══════════════════════════════════════════════════════════════╗
