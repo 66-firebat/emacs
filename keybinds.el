@@ -52,10 +52,39 @@ line mode, go to last line)."
 ;; f + two chars → jump to that exact character pair
 ;; S + two chars → jump to that exact character pair (overridden below)
 ;; g s           → jump to a visible line number
-(general-def '(normal visual visual-block visual-line operator)
+;;
+;; sc-avy-goto-char-2 is NOT an evil motion, so using it in operator-pending
+;; mode (e.g., `d f`) would error.  my/avy-goto-char-2-motion wraps it as
+;; a proper `evil-define-motion' with :type inclusive, so operators can
+;; consume the range it produces.
+
+;; Avy's two-char jump has a custom operator-pending motion.
+;; avyset-jump calls (push-mark) before (goto-char), creating
+;; an active region.  We clear `mark-active' after the jump so
+;; evil-motion-range sees no region and falls through to the
+;; default point-movement based range calculation.
+
+(evil-define-motion my/avy-goto-char-2-motion (count)
+  "Jump to a visible character pair using avy.
+Works in operator-pending mode (df, yf, cf, etc.)."
+  :type inclusive
+  :jump t
+  (let ((c1 (read-char "char 1: " t))
+        (c2 (read-char "char 2: " t)))
+    (setq mark-active nil)
+    (condition-case nil
+        (avy-goto-char-2 c1 c2 count nil nil)
+      (error nil))
+    ;; clear the mark that avy--goto's push-mark created
+    (setq mark-active nil)))
+
+(general-def '(normal visual visual-block visual-line)
   "f" 'sc-avy-goto-char-2
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
+
+(general-def '(operator)
+  "f" 'my/avy-goto-char-2-motion)
 
 ;; ── s / S — consult search ──────────────────────────────────────
 ;; s   → consult-line   (search current buffer)
