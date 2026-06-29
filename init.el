@@ -452,7 +452,8 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   :config
   (setq avy-background t)          ;; Dim the rest of the buffer
   (setq avy-style 'at-full)        ;; Show full candidate text
-  (setq avy-all-windows t))     ;; All windows on current frame
+  (setq avy-all-windows t)         ;; All windows on current frame
+  (setq avy-timeout-seconds 0.3))  ;; Timer for avy-goto-char-timer
 
 ;; ---------------------------------------------------------------------------
 ;;  13.  Project Management

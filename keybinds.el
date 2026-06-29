@@ -76,13 +76,26 @@ Works in operator-pending mode (df, yf, cf, etc.)."
       (error nil))
     (setq mark-active nil)))
 
+(evil-define-motion my/avy-goto-char-timer-motion (count)
+  "Jump using avy char timer.
+Works in operator-pending mode (dF, yF, cF, etc.)."
+  :type inclusive
+  :jump t
+  (setq mark-active nil)
+  (condition-case nil
+      (avy-goto-char-timer count)
+    (error nil))
+  (setq mark-active nil))
+
 (general-def '(normal visual visual-block visual-line)
   "f" 'avy-goto-char
+  "F" 'avy-goto-char-timer
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
 
 (general-def '(operator)
-  "f" 'my/avy-goto-char-motion)
+  "f" 'my/avy-goto-char-motion
+  "F" 'my/avy-goto-char-timer-motion)
 
 ;; ── s / S — consult search ──────────────────────────────────────
 ;; s   → consult-line   (search current buffer)
@@ -512,6 +525,9 @@ When called from inside dired:
 
 ;; ── Recent files ────────────────────────────────────────────────────────
 (global-set-key (kbd "C-c C-o") 'consult-recent-file)
+
+;; ── Find file ────────────────────────────────────────────────────────────
+(global-set-key (kbd "C-c C-p") 'find-file)
 
 ;; ── Spawn Eat terminal ────────────────────────────────────────
 (global-set-key (kbd "C-c C-i") 'my/eat-new)
