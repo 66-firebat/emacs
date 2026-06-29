@@ -235,8 +235,8 @@ Manages the ESC transient map."
 (defun sc--current-str (&optional mark)
   "Prefix: space + (mark or space) + space + icon + space + ┣ + space.  7 chars.
 When a search is active: search(3) + mark + space + ┣ + space.  6 chars."
-  (let* ((search-str (sc--search-instance-str))
-         (icon (sc--slice-icon)))
+  (let* ((search-str (unless sc--jump-active (sc--search-instance-str)))
+         (icon (if sc--jump-active "󰠠" (sc--slice-icon))))
     (if search-str
         ;; Search active — 7-char layout:  + mark + search(3) + ┣ + sp
         (concat (propertize "" 'face 'sc-search-face)

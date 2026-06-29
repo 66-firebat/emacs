@@ -58,11 +58,29 @@ line mode, go to last line)."
 ;; a proper `evil-define-motion' with :type inclusive, so operators can
 ;; consume the range it produces.
 
-;; Avy's two-char jump has a custom operator-pending motion.
-;; avyset-jump calls (push-mark) before (goto-char), creating
-;; an active region.  We clear `mark-active' after the jump so
-;; evil-motion-range sees no region and falls through to the
-;; default point-movement based range calculation.
+;; Shows the bolt icon (󰠠) in the statuscolumn during f/F/;/gs jumps
+;; by setting `sc--jump-active' so `sc--current-str' renders the bolt
+;; instead of the slice icon.
+
+(defun my/avy-goto-char-with-icon ()
+  "Like `avy-goto-char' but shows bolt icon in statuscolumn."
+  (interactive)
+  (let ((sc--jump-active t))
+    (sc--init)
+    (unwind-protect
+        (call-interactively 'avy-goto-char)
+      (setq sc--jump-active nil)
+      (sc--init))))
+
+(defun my/avy-goto-char-timer-with-icon ()
+  "Like `avy-goto-char-timer' but shows bolt icon in statuscolumn."
+  (interactive)
+  (let ((sc--jump-active t))
+    (sc--init)
+    (unwind-protect
+        (call-interactively 'avy-goto-char-timer)
+      (setq sc--jump-active nil)
+      (sc--init))))
 
 (evil-define-motion my/avy-goto-char-motion (count)
   "Jump to a visible character using avy.
@@ -88,8 +106,8 @@ Works in operator-pending mode (dF, yF, cF, etc.)."
   (setq mark-active nil))
 
 (general-def '(normal visual visual-block visual-line)
-  "f" 'avy-goto-char
-  "F" 'avy-goto-char-timer
+  "f" 'my/avy-goto-char-with-icon
+  "F" 'my/avy-goto-char-timer-with-icon
   ";" 'sc-avy-goto-line
   "gs" 'sc-avy-goto-line)
 
