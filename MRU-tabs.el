@@ -92,7 +92,7 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
                nix-mode sh-mode bash-mode yaml-mode json-mode sql-mode)
     ("Docs"    ""   org-mode markdown-mode text-mode)
     ("Config"  ""   conf-mode)
-    ("Dired"   ""   dired-mode)
+    ("Dired"   "󰙅"   dired-mode)
     ("Eat"     ""   eat-mode)
     ("Tools"   ""   magit-mode vterm-mode
                help-mode apropos-mode Info-mode)
