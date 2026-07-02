@@ -5,11 +5,11 @@
 ;;  Run with: emacs -nw
 ;;
 ;;  A clean, minimal Emacs config built on:
-;;    - Evil mode (vim everywhere via evil-collection)
-;;    - Doom Modeline with Nerd Font icons
-;;    - Vertico + Consult + Marginalia (modern minibuffer)
-;;    - Magit (git), Eglot (LSP), Org mode
-;;    - Firebat theme (#2b2b2b bg, #ff4400 accent)
+;;      - Evil mode (vim everywhere via evil-collection)
+;;      - Doom Modeline with Nerd Font icons
+;;      - Vertico + Consult + Marginalia (modern minibuffer)
+;;      - Magit (git), Eglot (LSP), Org mode
+;;      - Firebat theme (#2b2b2b bg, #ff4400 accent)
 ;; =============================================================================
 
 ;; ---------------------------------------------------------------------------
@@ -39,46 +39,7 @@
 (setq use-package-always-ensure t)
 
 ;; ---------------------------------------------------------------------------
-;;  2.  Custom Module Loading — All configuration modules
-;; ---------------------------------------------------------------------------
-
-(defvar my/init-dir
-  (file-name-directory (file-truename (or load-file-name buffer-file-name)))
-  "Directory containing this init.el and all config modules.")
-
-(defun my/load-module (name)
-  "Load a configuration module from the config directory."
-  (load (expand-file-name name my/init-dir)))
-
-;; ── Core UI ─────────────────────────────────────────────────────────────────
-(my/load-module "statuscolumn.el")   ;; Statuscolumn with letter jump labels
-(global-sc-mode 1)                    ;; Activate globally
-(my/load-module "neoscroll.el")      ;; Smooth animated scrolling
-(my/load-module "panes.el")          ;; Window divider & wrap glyph
-(my/load-module "MRU-tabs.el")        ;; MRU-based tab bar
-
-;; ── Navigation ──────────────────────────────────────────────────────────────
-(my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
-;; ── Terminal ────────────────────────────────────────────────────────────────
-(my/load-module "eat.el")            ;; Terminal emulator inside Emacs
-
-;; ── Editing ─────────────────────────────────────────────────────────────────
-(my/load-module "embark.el")         ;; Context-aware actions
-(my/load-module "dired.el")          ;; Dired customizations
-(my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
-
-;; ── Languages ───────────────────────────────────────────────
-(my/load-module "julia.el")         ;; Julia tree-sitter mode
-
-;; ── Misc ────────────────────────────────────────────────────────────────────
-
-(my/load-module "pi.el")             ;; AI coding agent frontend
-(my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
-(my/load-module "theme.el")          ;; Firebat theme
-(enable-theme 'firebat)
-
-;; ---------------------------------------------------------------------------
-;;  3.  Sane Defaults — Clean Terminal UI
+;;  2.  Sane Defaults — Clean Terminal UI
 ;; ---------------------------------------------------------------------------
 
 ;; Disable GUI elements — these do nothing in -nw mode but don't hurt
@@ -89,7 +50,6 @@
 (setq gc-cons-threshold 100000000) ; Increase to ~100MB during heavy tasks
 ; Disable Line Wrapping on Shell Buffers: Force Emacs to stop trying to wrap long incoming text streams dynamically
 (add-hook 'shell-mode-hook (lambda () (setq truncate-lines t)))
-
 
 ;; A friendlier scratch buffer message
 (setq initial-scratch-message ";; Welcome to Emacs + Evil\n")
@@ -147,14 +107,14 @@
             (setq gc-cons-threshold 800000)))
 
 ;; ---------------------------------------------------------------------------
-;;  4.  Evil Mode — Vim Emulation Everywhere
+;;  3.  Evil Mode — Vim Emulation Everywhere
 ;; ---------------------------------------------------------------------------
 
 ;; `evil` is the core vim emulation layer for Emacs.
 ;; With `evil-collection`, it provides vim keybindings for nearly every
 ;; built-in and third-party mode.
 (use-package evil
-  :demand t                 ;; Load immediately — not lazy
+  :demand t                   ;; Load immediately — not lazy
   :init
   ;; CRITICAL: Tell evil-collection to handle keybinding setup.
   ;; Without this, evil and evil-collection will conflict.
@@ -192,7 +152,7 @@
   (evil-collection-init))
 
 ;; ---------------------------------------------------------------------------
-;;  4b.  Evil Cursor — Per-state terminal cursor colors
+;;  3b.  Evil Cursor — Per-state terminal cursor colors
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -200,7 +160,7 @@
   (load (expand-file-name "evil-cursor.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  4c.  Kitty Keyboard Protocol — Proper key encoding in terminal
+;;  3c.  Kitty Keyboard Protocol — Proper key encoding in terminal
 ;; ---------------------------------------------------------------------------
 
 ;; The kkp package decodes CSI-u escape sequences (used by Ghostty, kitty,
@@ -253,7 +213,9 @@ Re-runs setup if the terminal was visited but KKP isn't active."
                 (delete terminal kkp--setup-visited-terminal-list)))
         (kkp-enable-in-terminal terminal)
         (message "KKP restart triggered — check *Messages* for [KKP] logs")))))
-;;  5.  Leader Key — SPC (Space) is our leader
+
+;; ---------------------------------------------------------------------------
+;;  4.  Leader Key — SPC (Space) is our leader
 ;; ---------------------------------------------------------------------------
 
 ;; `general` provides a clean way to define keybindings, including
@@ -276,7 +238,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   )
 
 ;; ---------------------------------------------------------------------------
-;;  6.  Which-Key — See available keybindings as you type
+;;  5.  Which-Key — See available keybindings as you type
 ;; ---------------------------------------------------------------------------
 
 ;; Shows a popup of possible keybindings after you press the leader key
@@ -288,7 +250,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   (setq which-key-idle-delay 0.5))  ;; Show after 0.5s of inactivity
 
 ;; ---------------------------------------------------------------------------
-;;  7.  Doom Modeline — A clean, informative mode line with Nerd Font icons
+;;  6.  Doom Modeline — A clean, informative mode line with Nerd Font icons
 ;; ---------------------------------------------------------------------------
 
 (let ((real-dir (file-name-directory
@@ -296,7 +258,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   (load (expand-file-name "doom-modeline.el" real-dir)))
 
 ;; ---------------------------------------------------------------------------
-;;  8.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
+;;  7.  Modern Minibuffer Completion — Vertico + Consult + Marginalia
 ;; ---------------------------------------------------------------------------
 
 ;; Vertico provides a vertical completion UI for the minibuffer.
@@ -316,14 +278,6 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   :config
   (marginalia-mode 1))
 
-;; ---------------------------------------------------------------------------
-;;  Orderless — Flexible completion style
-;; ---------------------------------------------------------------------------
-
-;; Orderless splits the input on spaces and matches each component
-;; independently, enabling flexible filtering like "fo ba" → "foobar".
-(my/load-module "orderless.el")
-
 ;; Consult provides powerful search and navigation commands that
 ;; integrate with Vertico: consult-line, consult-grep, consult-buffer, etc.
 (use-package consult
@@ -337,11 +291,8 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   :config
   (setq consult-narrow-key "<"))
 
-;; Consult-buffer custom sources — loaded after consult is configured
-(my/load-module "consult-buffer.el")
-
 ;; ---------------------------------------------------------------------------
-;;  9.  Git — Magit
+;;  8.  Git — Magit
 ;; ---------------------------------------------------------------------------
 
 ;; Magit is the premier git interface for Emacs.
@@ -353,7 +304,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
         'magit-display-buffer-fullframe-status-v1))
 
 ;; ---------------------------------------------------------------------------
-;;  10.  Language Support — Julia & Python
+;;  9.  Language Support — Julia & Python
 ;; ---------------------------------------------------------------------------
 
 ;; --- Python ---
@@ -390,7 +341,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 )
 
 ;; ---------------------------------------------------------------------------
-;;  11.  Org Mode — Notes, TODOs, Agenda
+;;  10.  Org Mode — Notes, TODOs, Agenda
 ;; ---------------------------------------------------------------------------
 
 (use-package org
@@ -433,7 +384,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   )
 
 ;; ---------------------------------------------------------------------------
-;;  12.  Avy — Jump to any visible character on screen
+;;  11.  Avy — Jump to any visible character on screen
 ;; ---------------------------------------------------------------------------
 
 ;; Avy lets you jump to any visible character by typing a short code.
@@ -447,13 +398,56 @@ Re-runs setup if the terminal was visited but KKP isn't active."
   (setq avy-timeout-seconds 0.3))  ;; Timer for avy-goto-char-timer
 
 ;; ---------------------------------------------------------------------------
-;;  13.  Project Management
+;;  12.  Project Management
 ;; ---------------------------------------------------------------------------
 
 (use-package project
   :defer t
   :config
   (setq project-vc-extra-root-markers '(".git" ".project" ".jlpm")))
+
+;; ---------------------------------------------------------------------------
+;;  13.  Custom Module Loading — Moved here to prevent void function errors
+;; ---------------------------------------------------------------------------
+
+(defvar my/init-dir
+  (file-name-directory (file-truename (or load-file-name buffer-file-name)))
+  "Directory containing this init.el and all config modules.")
+
+(defun my/load-module (name)
+  "Load a configuration module from the config directory."
+  (load (expand-file-name name my/init-dir)))
+
+;; ── Core UI ─────────────────────────────────────────────────────────────────
+(my/load-module "statuscolumn.el")   ;; Statuscolumn with letter jump labels
+(global-sc-mode 1)                    ;; Activate globally
+(my/load-module "neoscroll.el")      ;; Smooth animated scrolling
+(my/load-module "panes.el")          ;; Window divider & wrap glyph
+(my/load-module "MRU-tabs.el")        ;; MRU-based tab bar
+
+;; ── Navigation ──────────────────────────────────────────────────────────────
+(my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
+
+;; ── Terminal ────────────────────────────────────────────────────────────────
+(my/load-module "eat.el")            ;; Terminal emulator inside Emacs
+
+;; ── Editing ─────────────────────────────────────────────────────────────────
+(my/load-module "embark.el")         ;; Context-aware actions
+(my/load-module "dired.el")          ;; Dired customizations
+(my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
+
+;; ── Orderless Completion Addons ─────────────────────────────────────────────
+(my/load-module "orderless.el")      ;; Flexible completion style
+(my/load-module "consult-buffer.el") ;; Custom sources loaded after consult
+
+;; ── Languages ───────────────────────────────────────────────────────────────
+(my/load-module "julia.el")          ;; Julia tree-sitter mode
+
+;; ── Misc ────────────────────────────────────────────────────────────────────
+(my/load-module "pi.el")             ;; AI coding agent frontend
+(my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
+(my/load-module "theme.el")          ;; Firebat theme
+(enable-theme 'firebat)
 
 ;; ── Keybinds — depends on evil, general, which-key being loaded first ──────
 (my/load-module "keybinds.el")
