@@ -1,0 +1,5 @@
+;;; -*- coding: utf-8; mode: lisp-data -*-
+(("/etc/nixos/x1p42100-nixos/git_repositories/emacs/init.el" . 988)
+ ("/etc/nixos/x1p42100-nixos/git_repositories/emacs/"
+  (dired-filename
+   . "/etc/nixos/x1p42100-nixos/git_repositories/emacs/init.el")))
