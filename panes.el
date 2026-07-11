@@ -20,6 +20,10 @@
 ;;  In terminal mode, the wrap glyph is also customized.
 ;; =============================================================================
 
+(defface panes-border-face
+  '((t (:foreground "#ff4400" :background "#2b2b2b")))
+  "Face for the window divider vertical-border character (╎).")
+
 ;; ── Per-window vertical border glyphs ──────────────────────
 
 (defun panes-update-window-borders (&optional frame)
@@ -46,7 +50,7 @@
                  (wrap (and standard-display-table
                             (display-table-slot standard-display-table 'wrap))))
             (set-display-table-slot table 'vertical-border
-                                    (make-glyph-code char))
+                                    (make-glyph-code char 'panes-border-face))
             ;; Window display tables fully shadow buffer/standard tables,
             ;; so carry over the wrap glyph to avoid falling back to
             ;; Emacs' default \ wrap indicator.
