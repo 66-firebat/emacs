@@ -16,8 +16,8 @@
   :config
   ;; Left margin display with Nerd Font icons
   (setq diff-hl-margin-symbols-alist
-        '((insert . " ") (delete . " ") (change . " ")
-          (unknown . "┆") (ignored . " ") (reference . " ")))
+        '((insert . " 󰐗") (delete . " 󰅙") (change . " 󰆗")
+          (unknown . "󰋗") (ignored . " 󰍶") (reference . " 󱆮")))
 
   ;; Enable globally in all file-visiting buffers
   (global-diff-hl-mode 1)

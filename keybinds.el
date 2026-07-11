@@ -123,9 +123,52 @@ Works in operator-pending mode (dF, yF, cF, etc.)."
 ;;
 ;; Overrides: s = evil-substitute, S = avy-goto-char-2.
 ;; Use x then i to substitute a char, or f for two-char Avy jumps.
+;;
+;; Both push the current cursor position into the Evil jump ring
+;; before opening the consult UI, so C-o returns to where you were.
+;; After selection, the search text is pushed into Emacs' search ring
+;; so n/N (evil-search-next/previous) re-searches with that text.
+(defun my/consult-line-with-jump ()
+  "Push current position to jump ring, then call `consult-line'.
+After selection, push the user's typed input into the search ring so
+n/N works with the same search pattern."
+  (interactive)
+  (evil-set-jump)
+  (let ((search-string nil))
+    (condition-case nil
+        (call-interactively 'consult-line)
+      (quit nil))
+    (when (and (bound-and-true-p consult--line-history)
+               (car-safe consult--line-history))
+      (setq search-string (car consult--line-history))
+      (when (not (string= search-string ""))
+        (isearch-update-ring search-string nil)
+        (isearch-update-ring search-string t)
+        (setq isearch-forward t
+              evil-regexp-search t)))))
+
+(defun my/consult-ripgrep-with-jump ()
+  "Push current position to jump ring, then call `consult-ripgrep'.
+After selection, push the user's typed input into the search ring so
+n/N works with the same search pattern."
+  (interactive)
+  (evil-set-jump)
+  (let ((search-string nil))
+    (condition-case nil
+        (call-interactively 'consult-ripgrep)
+      (quit nil))
+    (when (and (bound-and-true-p consult--grep-history)
+               (car-safe consult--grep-history))
+      (setq search-string (car consult--grep-history))
+      (when (not (string= search-string ""))
+        (isearch-update-ring search-string nil)
+        (isearch-update-ring search-string t)
+        (setq isearch-forward t
+              evil-regexp-search t)))))
+
 (general-def '(normal visual visual-block visual-line)
-  "s" 'consult-line
-  "S" 'consult-ripgrep)
+  "s" 'my/consult-line-with-jump
+  "S" 'my/consult-ripgrep-with-jump)
 
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
 ;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
