@@ -288,6 +288,7 @@ Background: #2b2b2b  Accent: #ff4400")
  `(dired-broken-symlink ((t (:foreground ,firebat-accent))))
  `(dired-ignored ((t (:foreground ,firebat-comment))))
  ;; Dirvish faces removed — dirvish has been uninstalled.
+
 )
 
 ;; ── Provide ─────────────────────────────────────────────────────
