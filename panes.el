@@ -41,10 +41,17 @@
                         ;; Everything else gets │
                         (t                        ?╎))))
         (when char
-          (let ((table (or (window-display-table win)
-                           (set-window-display-table win (make-display-table)))))
+          (let* ((table (or (window-display-table win)
+                           (set-window-display-table win (make-display-table))))
+                 (wrap (and standard-display-table
+                            (display-table-slot standard-display-table 'wrap))))
             (set-display-table-slot table 'vertical-border
-                                    (make-glyph-code char))))))))
+                                    (make-glyph-code char))
+            ;; Window display tables fully shadow buffer/standard tables,
+            ;; so carry over the wrap glyph to avoid falling back to
+            ;; Emacs' default \ wrap indicator.
+            (when wrap
+              (set-display-table-slot table 'wrap wrap))))))))
 
 ;; ── Auto-update hooks ──────────────────────────────────────
 
@@ -68,26 +75,25 @@
   (interactive)
   (panes-update-window-borders))
 
-;; ── Terminal wrap glyph ───────────────────────────────────
-(unless (display-graphic-p)
-  ;; Standard display table (global fallback)
-  (let ((table (or standard-display-table
-                   (setq standard-display-table (make-display-table)))))
-    (set-display-table-slot table 'wrap (make-glyph-code ?· 'shadow)))
+;; ── Wrap glyph (GUI + terminal) ───────────────────────────
+;; Standard display table (global fallback)
+(let ((table (or standard-display-table
+                 (setq standard-display-table (make-display-table)))))
+  (set-display-table-slot table 'wrap (make-glyph-code ?\s 'shadow)))
 
-  ;; Buffer-local display tables in terminal emulators that
-  ;; shadow the standard display table.
-  (dolist (hook '(eat-mode-hook vterm-mode-hook))
-    (add-hook hook
-              (lambda ()
-                (when-let ((table (or buffer-display-table
-                                      (setq buffer-display-table
-                                            (make-display-table)))))
-                  (set-display-table-slot table 'wrap
-                                          (make-glyph-code ?· 'shadow))))))
+;; Buffer-local display tables in terminal emulators that
+;; shadow the standard display table.
+(dolist (hook '(eat-mode-hook vterm-mode-hook))
+  (add-hook hook
+            (lambda ()
+              (when-let ((table (or buffer-display-table
+                                    (setq buffer-display-table
+                                          (make-display-table)))))
+                (set-display-table-slot table 'wrap
+                                        (make-glyph-code ?\s 'shadow))))))
 
-  ;; Initial border layout
-  (panes-update-window-borders))
+;; Initial border layout
+(panes-update-window-borders)
 
 (provide 'panes)
 ;; panes.el ends here

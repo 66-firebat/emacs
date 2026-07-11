@@ -62,9 +62,9 @@ Hunks with both + and - are counted as changes ()."
                 (string-join
                  (delq nil
                        (list
-                        (when (> inserts 0) (format " %d" inserts))
-                        (when (> changes 0) (format " %d" changes))
-                        (when (> deletes 0) (format " %d" deletes))))
+                        (when (> inserts 0) (format "󰐗 %d" inserts))
+                        (when (> changes 0) (format "󰆗 %d" changes))
+                        (when (> deletes 0) (format "󰅙 %d" deletes))))
                  " ")
               "󰦕 "))
         (error "󰦕 ")))))

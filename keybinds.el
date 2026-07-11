@@ -170,6 +170,28 @@ n/N works with the same search pattern."
   "s" 'my/consult-line-with-jump
   "S" 'my/consult-ripgrep-with-jump)
 
+;; ── n / N — search next/previous with auto-recenter ───────────
+;; Wraps evil-search-next/previous and then calls
+;; evil-scroll-line-to-center (zz) to keep the match centered.
+;;
+;; Overrides: n = evil-search-next, N = evil-search-previous.
+;; Bound only in motion-state-map; visual and operator states
+;; inherit via Evil's fallthrough mechanism.
+(defun my/evil-search-next-and-center (&optional count)
+  "Search forward for next match, then recenter the window."
+  (interactive "P")
+  (evil-search-next count)
+  (recenter))
+
+(defun my/evil-search-previous-and-center (&optional count)
+  "Search backward for previous match, then recenter the window."
+  (interactive "P")
+  (evil-search-previous count)
+  (recenter))
+
+(define-key evil-motion-state-map "n" 'my/evil-search-next-and-center)
+(define-key evil-motion-state-map "N" 'my/evil-search-previous-and-center)
+
 ;; ── C-i / TAB jump forward ─────────────────────────────────────
 ;; evil-want-C-i-jump t (init.el) handles TAB via evil-motion-state-map.
 ;; The kkp package (init.el) decodes C-i as [C-i] terminal-side; we
