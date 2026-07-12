@@ -267,29 +267,21 @@ Buffer is named like \"0  19950\" (index +  + PID)."
 
 (defun my/eat-compose ()
   "Open a compose buffer to write text for the current eat terminal.
-Pre-populates with any text already typed at the shell prompt.
+If called from a visual selection, captures the selected text into
+the compose buffer.  Otherwise starts empty.
 \nType your text with full Emacs editing, then:\n  C-c C-c  — Send to eat and close\n  C-c C-k  — Cancel and close"
   (interactive)
   (unless (derived-mode-p 'eat-mode)
     (user-error "Not in an eat terminal buffer"))
   (let* ((source-buf (current-buffer))
-         (current-input
-          (with-current-buffer source-buf
-            (let* ((bol (line-beginning-position))
-                   (line (buffer-substring-no-properties bol (point-max)))
-                   ;; Strip shell prompt at start of line
-                   (cleaned
-                    (if (string-match
-                         ".*[$#%>:] \\|.*╰─.*:"
-                         line)
-                        (substring line (match-end 0))
-                      line)))
-              (string-trim cleaned)))))
+         (selected (when (evil-visual-state-p)
+                     (buffer-substring-no-properties
+                      (region-beginning) (region-end)))))
     (switch-to-buffer (get-buffer-create "*eat-compose*"))
     (unless (zerop (buffer-size))
       (erase-buffer))
-    (when (and current-input (> (length current-input) 0))
-      (insert current-input))
+    (when selected
+      (insert selected))
     (text-mode)
     (setq my/eat-compose-source source-buf)
     (my/eat-compose-mode 1)

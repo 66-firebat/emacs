@@ -18,7 +18,7 @@
 ;;    clean, correct statuscolumn.
 ;; =============================================================================
 
-(defface sc-label-face '((t (:foreground "#444444" :background "#2b2b2b")))
+(defface sc-label-face '((t (:foreground "#8C8C8C" :background "#2b2b2b")))
   "Face for jump labels on non-current lines.")
 (defface sc-current-face '((t (:foreground "#ff4400" :background "#2b2b2b")))
   "Face for absolute line number on current line.")
