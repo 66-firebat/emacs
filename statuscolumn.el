@@ -28,7 +28,7 @@
   "Face for ┣ separator on current line.")
 (defface sc-wrap-icon '((t (:foreground "#ff4400" :background "#2b2b2b")))
   "Face for  icon on wrapped CURRENT-line continuation lines.")
-(defface sc-wrap-icon-dim '((t (:foreground "#CCCCCC" :background "#2b2b2b")))
+(defface sc-wrap-icon-dim '((t (:foreground "#ff4400" :background "#2b2b2b")))
   "Face for  icon on wrapped NON-CURRENT continuation lines.")
 (defface sc-search-face '((t (:background "#ff4400" :foreground "#2b2b2b")))
   "Face for the Evil search instance counter in the statuscolumn.")
