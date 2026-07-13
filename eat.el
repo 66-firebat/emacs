@@ -51,8 +51,6 @@ Used by window--adjust-process-windows for ongoing resize handling."
               (setq-local window-adjust-process-window-size-function
                           #'my/eat-adjust-window-size)))
 
-  (remove-hook 'eat-update-hook #'sc--on-eat-update)
-
   (defun my/eat-snap-cursor-on-insert ()
     (when (and (derived-mode-p 'eat-mode) (bound-and-true-p eat-terminal))
       (let ((pos (ignore-errors (eat-term-display-cursor eat-terminal))))

@@ -4,18 +4,13 @@
 ;;  statuscolumn.el — Permanent letter jump labels in the statuscolumn
 ;;
 ;;  DESIGN:
-;;    sc--init runs on EVERY post-command, creating/updating overlays for
-;;    all visible lines.  Uses double-buffer (Phase 1: update in-place or
-;;    create; Phase 2: delete vanished) so there is no flicker from the
-;;    delete-all→create-all cycle.
+;;    sc--init runs on EVERY post-command, deleting all overlays and
+;;    creating fresh ones for every visible line.  No flicker because
+;;    redisplay happens between commands, not within them — the
+;;    delete+create is atomic from the user's perspective.
 ;;
-;;    sc--find-ov-at uses position containment (<= start < end).  Since
-;;    sc--make-ov excludes the trailing newline from each overlay, ranges
-;;    never overlap even after buffer edits — position containment always
-;;    finds the correct overlay.
-;;
-;;    No fast-path functions, no conditional logic.  Every command gets a
-;;    clean, correct statuscolumn.
+;;    No overlay-reuse logic, no position-containment lookups, no
+;;    conditional fast-paths.  Every command gets a clean slate.
 ;; =============================================================================
 
 (defface sc-label-face '((t (:foreground "#8C8C8C" :background "#2b2b2b")))
@@ -293,10 +288,6 @@ When a search is active: search(3) + mark + space + ┣ + space.  6 chars."
   "Non-nil while ; jump is active — replaces slice icon with 󰠠.")
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Find overlay — linear scan of sc--ovs by start-position equality
-;; ═════════════════════════════════════════════════════════════════════════════
-
-;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Init — delete all overlays, create fresh for every visible line
 ;; ═════════════════════════════════════════════════════════════════════════════
 
@@ -347,7 +338,7 @@ between commands, not within them — the delete+create is atomic."
                 sc--last-tick (buffer-chars-modified-tick)))))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  On move — swap current-line indicator between 2 overlays (FAST PATH)
+;;  Post-command — full sc--init on every command
 ;; ═════════════════════════════════════════════════════════════════════════════
 
 (defun sc--on-post-command ()
@@ -357,15 +348,26 @@ Simple, correct, no stale state.  Phase 1/2 double-buffer prevents flicker."
     (sc--init)))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
-;;  Window scroll — fires during redisplay when window-start changes
+;;  Pre-redisplay — fires before every redisplay, catches scrolls from timers
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-(defun sc--on-window-scroll (win _new-start)
-  "Window-scroll-functions hook — re-init immediately on scroll.
-Fires during redisplay, right after window-start changes."
-  (when (and sc-mode (buffer-live-p (window-buffer win)))
-    (with-current-buffer (window-buffer win)
-      (sc--init))))
+(defun sc--on-pre-redisplay (window)
+  "Check for changes before redisplay.
+Replaces window-scroll-functions because that hook can miss scrolls
+that were set explicitly outside a redisplay cycle (e.g. eat's timer
+callback calling recenter).  Checks both window-start and buffer tick
+so we catch both scroll events and non-scrolling output."
+  (when (window-live-p window)
+    (with-current-buffer (window-buffer window)
+      (when sc-mode
+        (let* ((ws (window-start window))
+               (tick (buffer-chars-modified-tick))
+               (ws-changed (or (null sc--last-ws) (/= ws sc--last-ws)))
+               (tick-changed (or (null sc--last-tick) (/= tick sc--last-tick))))
+          (when (or ws-changed tick-changed)
+            (setq sc--last-ws ws
+                  sc--last-tick tick)
+            (sc--init)))))))
 
 ;; ═════════════════════════════════════════════════════════════════════════════
 ;;  Window resize
@@ -463,14 +465,6 @@ Saves current position to the Evil jumplist before jumping."
 ;;  sc-mode
 ;; ═════════════════════════════════════════════════════════════════════════════
 
-;; Hook into eat's update-hook so terminal output refreshes the statuscolumn.
-(defun sc--on-eat-update ()
-  "Refresh statuscolumn after eat processes terminal output.
-Called from eat-update-hook, which runs inside eat's output-processing
-timer callback after every batch of terminal output is processed."
-  (when sc-mode
-    (sc--init)))
-
 (define-minor-mode sc-mode
   "Statuscolumn with letter jump labels."
   :lighter "" :global nil
@@ -508,17 +502,11 @@ timer callback after every batch of terminal output is processed."
         (global-sc-mode--enable-all)
         (add-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
         (add-hook 'window-size-change-functions #'sc--on-window-size-change)
-        (add-hook 'window-scroll-functions #'sc--on-window-scroll)
-        ;; Hook into eat's update cycle — terminal output processed outside
-        ;; the command loop, so post-command-hook doesn't catch it.
-        (when (boundp 'eat-update-hook)
-          (add-hook 'eat-update-hook #'sc--on-eat-update)))
+        (add-hook 'pre-redisplay-functions #'sc--on-pre-redisplay))
     (global-sc-mode--disable-all)
     (remove-hook 'after-change-major-mode-hook #'global-sc-mode--enable-buffer)
     (remove-hook 'window-size-change-functions #'sc--on-window-size-change)
-    (remove-hook 'window-scroll-functions #'sc--on-window-scroll)
-    (when (boundp 'eat-update-hook)
-      (remove-hook 'eat-update-hook #'sc--on-eat-update))))
+    (remove-hook 'pre-redisplay-functions #'sc--on-pre-redisplay)))
 
 (defun global-sc-mode--enable-buffer ()
   (when (and global-sc-mode (not sc-mode)) (sc-mode 1)))
