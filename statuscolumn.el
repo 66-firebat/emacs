@@ -246,14 +246,14 @@ When a search is active: search(3) + mark + space + ┣ + space.  6 chars."
             (propertize " " 'face 'sc-label-face)
             (propertize trimmed 'face 'sc-label-face)
             (propertize (if (= 1 (length trimmed)) " " "") 'face 'sc-label-face)
-            (propertize "┃ " 'face 'sc-sep))))
+            (propertize "┇ " 'face 'sc-sep))))
 
 (defun sc--sep-str ()
   "Wrap prefix for non-current continuation lines —  ┃.  8 chars."
   (concat (propertize "    " 'face 'sc-sep)
           (propertize "" 'face 'sc-wrap-icon-dim)
           (propertize " " 'face 'sc-sep)
-          (propertize "┃ " 'face 'sc-sep)))
+          (propertize "┇ " 'face 'sc-sep)))
 
 (defun sc--bump-str ()
   "Wrap prefix for current continuation lines —  ┣.  8 chars."
