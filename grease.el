@@ -67,6 +67,10 @@ the resolved target."
 Used when the symlink target does not exist on the filesystem."
   :group 'grease)
 
+(defface grease-symlink-arrow
+  '((t :foreground "#d3d3d3" :background nil))
+  "Face for the symlink arrow icon (󰑃).")
+
 (defcustom grease-skip-confirm-for-simple-edits nil
   "When non-nil, save simple edits without asking for confirmation.
 A simple edit has no deletes, at most five creates, at most one copy,
@@ -347,7 +351,7 @@ creates a directory rather than an empty file."
             (if (string-match "\\(?:[^\n[:alnum:]/._+-]\\s-*\\)*\\([[:alnum:]/._+-].*\\)$" text)
                 (match-string 1 text)
               (string-trim text)))))
-    (if (string-match "" filename)
+    (if (string-match "󰑃" filename)
         (string-trim-right (substring filename 0 (match-beginning 0)))
       filename)))
 
@@ -632,8 +636,8 @@ IS-DUPLICATE indicates if this is a copy of another file."
                               'grease-symlink-broken)))
           (insert " ")
           (let ((mark-start (point)))
-            (insert " ")
-            (put-text-property mark-start (point) 'face target-face))
+            (insert "󰑃 ")
+            (put-text-property mark-start (point) 'face 'grease-symlink-arrow))
           (let ((target-start (point)))
             (insert resolved)
             (put-text-property target-start (point) 'face target-face)))))
