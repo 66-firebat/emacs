@@ -90,6 +90,7 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
                c++-ts-mode javascript-mode js-mode js2-mode
                typescript-mode tsx-mode css-mode web-mode
                nix-mode sh-mode bash-mode yaml-mode json-mode sql-mode)
+    ("Grease"  "󰏇"   grease-mode)
     ("Docs"    ""   org-mode markdown-mode text-mode)
     ("Config"  ""   conf-mode)
     ("Dired"   "󰙅"   dired-mode)
