@@ -224,7 +224,7 @@ SELECTED-P non-nil means this is the selected tab."
                         (not (with-current-buffer buffer                 ; OPEN 1 (with-current-buffer)
                                (derived-mode-p 'vterm-mode)))))
          (prefix   (if modified                                          ; OPEN 1 (if)
-                      (propertize "󰐗 " 'face 'my/ct-modified)
+                      (propertize "󰑧 " 'face 'my/ct-modified)
                     ""))                                                 ; CLOSE 1 (if)
          (label    (format " %s%s" prefix bufname)))                 ; OPEN 1 (format)
     (propertize label                                                  ; OPEN 1 (propertize)
