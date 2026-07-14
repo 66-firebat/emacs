@@ -3071,6 +3071,7 @@ editing or discard all staged Grease-buffer changes."
   "Quit this Grease buffer only after the unified save succeeds."
   (interactive)
   (grease--save-position)
+  (grease--cd-origin-eat)
   (if (or grease--buffer-dirty-p grease--pending-changes)
       (when (grease-save-all-buffers)
         (kill-buffer (current-buffer)))
@@ -3373,6 +3374,8 @@ If the current directory does not exist, traverse to an existing parent."
      (t
       (let* ((start-dir (expand-file-name default-directory))
              (valid-dir start-dir))
+        ;; Save the originating buffer for grease-eat-cd-on-quit
+        (setq grease--origin-buffer (current-buffer))
         ;; Find the nearest existing parent directory.
         (while (and (not (file-exists-p valid-dir))
                     (not (string= valid-dir "/"))

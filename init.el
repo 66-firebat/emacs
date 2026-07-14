@@ -430,6 +430,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
 (my/load-module "eat.el")            ;; Terminal emulator inside Emacs
+(my/load-module "eat_utilities.el") ;; Eat <-> Grease integration
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions

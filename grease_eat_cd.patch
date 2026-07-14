@@ -1,0 +1,168 @@
+diff --git a/eat_utilities.el b/eat_utilities.el
+new file mode 100644
+index 0000000..6a5720b
+--- /dev/null
++++ b/eat_utilities.el
+@@ -0,0 +1,40 @@
++;;; eat_utilities.el --- Eat terminal integration for Grease  -*- lexical-binding: t; -*-
++
++;;; Commentary:
++;; Utilities for synchronising Grease with an Eat terminal.  When enabled,
++;; quitting Grease sends a `cd' command to the originating Eat terminal's
++;; shell process, changing its working directory to the last Grease directory.
++
++;;; Code:
++
++(defcustom grease-eat-cd-on-quit t
++  "When non-nil, send `cd' to originating Eat terminal on Grease quit.
++The Eat buffer that was current before Grease was opened will have its
++shell changed to the last directory browsed in Grease.
++Requires `eat' to be loaded."
++  :type 'boolean
++  :group 'grease)
++
++(defvar grease--origin-buffer nil
++  "Buffer that was current when Grease was opened, for `grease-eat-cd-on-quit'.")
++
++(defun grease--cd-origin-eat ()
++  "Send `cd' to the origin Eat buffer, if any.
++The origin buffer is saved by `grease-toggle' when opening Grease from
++a non-Grease buffer."
++  (let ((dir grease--root-dir))
++    (when (and grease--origin-buffer
++               (buffer-live-p grease--origin-buffer)
++               grease-eat-cd-on-quit
++               (fboundp 'eat--send-string))
++      (with-current-buffer grease--origin-buffer
++        (when (eq major-mode 'eat-mode)
++          (when-let ((proc (eat-term-parameter
++                            (bound-and-true-p eat-terminal)
++                            'eat--process)))
++            (eat--send-string proc (format "cd %s\n" dir))
++            (message "Grease: Sent cd to Eat for %s" dir))))
++      (setq grease--origin-buffer nil))))
++
++(provide 'eat_utilities)
++;;; eat_utilities.el ends here
+diff --git a/eat_utilities.patch b/eat_utilities.patch
+new file mode 100644
+index 0000000..b19d722
+--- /dev/null
++++ b/eat_utilities.patch
+@@ -0,0 +1,80 @@
++diff --git a/eat_utilities.el b/eat_utilities.el
++new file mode 100644
++index 0000000..4fa1171
++--- /dev/null
+++++ b/eat_utilities.el
++@@ -0,0 +1,41 @@
+++;;; eat_utilities.el --- Eat terminal integration for Grease  -*- lexical-binding: t; -*-
+++
+++;;; Commentary:
+++;; Utilities for synchronising Grease with an Eat terminal.  When enabled,
+++;; quitting Grease sends a `cd' command to the originating Eat terminal's
+++;; shell process, changing its working directory to the last Grease directory.
+++
+++;;; Code:
+++
+++(defcustom grease-eat-cd-on-quit nil
+++  "When non-nil, send `cd' to originating Eat terminal on Grease quit.
+++The Eat buffer that was current before Grease was opened will have its
+++shell changed to the last directory browsed in Grease.
+++Requires `eat' to be loaded."
+++  :type 'boolean
+++  :group 'grease)
+++
+++(defvar grease--origin-buffer nil
+++  "Buffer that was current when Grease was opened, for `grease-eat-cd-on-quit'.")
+++
+++(defun grease--cd-origin-eat ()
+++  "Send `cd' to the origin Eat buffer, if any.
+++The origin buffer is saved by `grease-toggle' when opening Grease from
+++a non-Grease buffer."
+++  (when (and grease--origin-buffer
+++             (buffer-live-p grease--origin-buffer)
+++             grease-eat-cd-on-quit
+++             (fboundp 'eat--send-string))
+++    (with-current-buffer grease--origin-buffer
+++      (when (eq major-mode 'eat-mode)
+++        (when-let ((proc (eat-term-parameter
+++                          (bound-and-true-p eat-terminal)
+++                          'eat--process)))
+++          (eat--send-string
+++           proc
+++           (format "cd %s\n" grease--root-dir))
+++          (message "Grease: Sent cd to Eat for %s" grease--root-dir))))
+++    (setq grease--origin-buffer nil)))
+++
+++(provide 'eat_utilities)
+++;;; eat_utilities.el ends here
++diff --git a/grease.el b/grease.el
++index 8c9001c..e97c184 100644
++--- a/grease.el
+++++ b/grease.el
++@@ -3071,6 +3071,7 @@ editing or discard all staged Grease-buffer changes."
++   "Quit this Grease buffer only after the unified save succeeds."
++   (interactive)
++   (grease--save-position)
+++  (grease--cd-origin-eat)
++   (if (or grease--buffer-dirty-p grease--pending-changes)
++       (when (grease-save-all-buffers)
++         (kill-buffer (current-buffer)))
++@@ -3373,6 +3374,8 @@ If the current directory does not exist, traverse to an existing parent."
++      (t
++       (let* ((start-dir (expand-file-name default-directory))
++              (valid-dir start-dir))
+++        ;; Save the originating buffer for grease-eat-cd-on-quit
+++        (setq grease--origin-buffer (current-buffer))
++         ;; Find the nearest existing parent directory.
++         (while (and (not (file-exists-p valid-dir))
++                     (not (string= valid-dir "/"))
++diff --git a/init.el b/init.el
++index 32c5915..b555f9f 100644
++--- a/init.el
+++++ b/init.el
++@@ -430,6 +430,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
++ 
++ ;; ── Terminal ────────────────────────────────────────────────────────────────
++ (my/load-module "eat.el")            ;; Terminal emulator inside Emacs
+++(my/load-module "eat_utilities.el") ;; Eat <-> Grease integration
++ 
++ ;; ── Editing ─────────────────────────────────────────────────────────────────
++ (my/load-module "embark.el")         ;; Context-aware actions
+diff --git a/grease.el b/grease.el
+index 8c9001c..e97c184 100644
+--- a/grease.el
++++ b/grease.el
+@@ -3071,6 +3071,7 @@ editing or discard all staged Grease-buffer changes."
+   "Quit this Grease buffer only after the unified save succeeds."
+   (interactive)
+   (grease--save-position)
++  (grease--cd-origin-eat)
+   (if (or grease--buffer-dirty-p grease--pending-changes)
+       (when (grease-save-all-buffers)
+         (kill-buffer (current-buffer)))
+@@ -3373,6 +3374,8 @@ If the current directory does not exist, traverse to an existing parent."
+      (t
+       (let* ((start-dir (expand-file-name default-directory))
+              (valid-dir start-dir))
++        ;; Save the originating buffer for grease-eat-cd-on-quit
++        (setq grease--origin-buffer (current-buffer))
+         ;; Find the nearest existing parent directory.
+         (while (and (not (file-exists-p valid-dir))
+                     (not (string= valid-dir "/"))
+diff --git a/init.el b/init.el
+index 32c5915..b555f9f 100644
+--- a/init.el
++++ b/init.el
+@@ -430,6 +430,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
+ 
+ ;; ── Terminal ────────────────────────────────────────────────────────────────
+ (my/load-module "eat.el")            ;; Terminal emulator inside Emacs
++(my/load-module "eat_utilities.el") ;; Eat <-> Grease integration
+ 
+ ;; ── Editing ─────────────────────────────────────────────────────────────────
+ (my/load-module "embark.el")         ;; Context-aware actions
+diff --git a/patches/eat_utilities.patch b/patches/eat_utilities.patch
+new file mode 100644
+index 0000000..e69de29
