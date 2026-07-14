@@ -85,7 +85,7 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
 ;; ╚══════════════════════════════════════════════════════════════╝
 
 (defvar my/tab-group-categories
-  '(("Code"    ""   emacs-lisp-mode lisp-mode python-mode go-mode
+  '(("Code"    ""   emacs-lisp-mode lisp-mode python-mode go-mode
                rust-mode java-mode c-mode c++-mode c-ts-mode
                c++-ts-mode javascript-mode js-mode js2-mode
                typescript-mode tsx-mode css-mode web-mode
