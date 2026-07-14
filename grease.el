@@ -67,6 +67,23 @@ the resolved target."
 Used when the symlink target does not exist on the filesystem."
   :group 'grease)
 
+(defcustom grease-line-wrapping t
+  "When non-nil, enable line wrapping in Grease buffers.
+When nil (the default), long lines are truncated at the window edge.
+Wrapping makes long symlink target paths visible without horizontal
+scrolling, but can make the buffer layout less predictable.
+
+Changing this variable only affects newly created Grease buffers.
+To apply it to an existing buffer, use `grease-refresh` (\[grease-refresh])."
+  :type 'boolean
+  :group 'grease)
+
+(defun grease--apply-line-wrapping ()
+  "Apply `grease-line-wrapping' to the current buffer.
+When `grease-line-wrapping' is non-nil, enable line wrapping.
+When nil, truncate long lines at the window edge."
+  (setq-local truncate-lines (not grease-line-wrapping)))
+
 (defcustom grease-skip-confirm-for-simple-edits nil
   "When non-nil, save simple edits without asking for confirmation.
 A simple edit has no deletes, at most five creates, at most one copy,
@@ -635,7 +652,7 @@ IS-DUPLICATE indicates if this is a copy of another file."
                (target-face (if (file-exists-p resolved)
                                 'font-lock-comment-face
                               'grease-symlink-broken))
-               (suffix (propertize (concat "  " resolved)
+               (suffix (propertize (concat " ↦ " resolved)
                                    'face target-face)))
           (let ((ov (make-overlay (1- eol) eol)))
             (overlay-put ov 'after-string suffix)
@@ -759,7 +776,7 @@ Otherwise, remove any existing symlink overlay."
            (target-face (if (file-exists-p resolved)
                             'font-lock-comment-face
                           'grease-symlink-broken))
-           (suffix (propertize (concat "  " resolved)
+           (suffix (propertize (concat " ↦ " resolved)
                                'face target-face)))
       (let ((ov (make-overlay (1- line-end) line-end)))
         (overlay-put ov 'after-string suffix)
@@ -2700,7 +2717,7 @@ editing or discard all staged Grease-buffer changes."
   ;; Grease buffers are editable directory listings, not source files.  Avoid
   ;; `prog-mode' hooks such as tree-sitter/font-lock change tracking, which can
   ;; assert when Evil opens and edits synthetic listing lines.
-  (setq-local truncate-lines t)
+  (grease--apply-line-wrapping)
   (setq buffer-read-only nil) ;; Ensure buffer is not read-only
   (add-hook 'after-change-functions #'grease--on-change nil t)
   (add-hook 'kill-buffer-hook #'grease--close-preview nil t)
