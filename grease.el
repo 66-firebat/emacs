@@ -970,6 +970,10 @@ Runs BEFORE Evil's delete (which will also yank)."
           (goto-char (region-beginning))
           (let ((end (save-excursion (goto-char (region-end)) (line-end-position))))
             (while (< (point) end)
+              ;; Remove symlink overlays before Evil deletes the line
+              (dolist (ov (overlays-in (line-beginning-position) (1+ (line-end-position))))
+                (when (overlay-get ov 'grease-symlink-display)
+                  (delete-overlay ov)))
               (let ((data (grease--get-line-data)))
                 (when data
                   (let* ((name (plist-get data :name))
@@ -1001,6 +1005,10 @@ Runs BEFORE Evil's delete (which will also yank)."
      ;; Single-line cut
      (t
       (let ((data (grease--get-line-data)))
+        ;; Remove symlink overlays on this line before Evil deletes it
+        (dolist (ov (overlays-in (line-beginning-position) (1+ (line-end-position))))
+          (when (overlay-get ov 'grease-symlink-display)
+            (delete-overlay ov)))
         (when data
           (let* ((name (plist-get data :name))
                  (type (plist-get data :type))
@@ -1366,10 +1374,32 @@ Runs BEFORE Evil's delete (which will also yank)."
     (nreverse entries)))
 
 (defun grease--on-change (_beg _end _len)
-  "Hook run after buffer changes to mark it dirty."
+  "Hook run after buffer changes to mark it dirty and refresh symlink overlays.
+Refreshing overlays here handles undo/redo: when the user undoes a `dd`,
+the deleted line's text comes back but overlays are not restored by undo.
+This function re-creates any missing symlink overlays on changed lines."
   (unless grease--change-hook-active
     (let ((grease--change-hook-active t))
-      (setq grease--buffer-dirty-p t))))
+      (setq grease--buffer-dirty-p t)
+      ;; Refresh symlink overlays for affected lines (e.g. after undo)
+      ;; Only run if the buffer is initialized (grease--root-dir set)
+      (when (and (derived-mode-p 'grease-mode) grease--root-dir)
+        (save-excursion
+          ;; Determine the line range affected by the change
+          (let* ((beg-line (progn (goto-char _beg) (line-beginning-position)))
+                 (end-line (progn (goto-char (max _beg _end))
+                                  (forward-line 1)
+                                  (line-beginning-position))))
+            (goto-char beg-line)
+            (while (< (point) end-line)
+              (let* ((lb (line-beginning-position))
+                     (le (line-end-position))
+                     (data (grease--get-line-data)))
+                (when data
+                  (let ((fp (plist-get data :full-path)))
+                    (when fp
+                      (grease--refresh-symlink-overlay lb le fp))))
+              (forward-line 1)))))))))
 
 ;;;; Change Calculation (Diff Engine)
 (defun grease--relative-path (path)
