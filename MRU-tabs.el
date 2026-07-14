@@ -441,7 +441,7 @@ With BACKWARD non-nil, cycle to the previous tab."
   (let* ((buf (car tab))
          (bufname (buffer-name buf))
          (modified (buffer-modified-p buf))
-         (prefix (if modified (propertize "󰐗 " 'face 'my/ct-modified) "")))
+         (prefix (if modified (propertize "󰑧 " 'face 'my/ct-modified) "")))
     (format " %s%s " prefix bufname)))
 
 (provide 'MRU-tabs)
