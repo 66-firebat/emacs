@@ -430,7 +430,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
 (my/load-module "eat.el")            ;; Terminal emulator inside Emacs
-(my/load-module "eat_utilities.el") ;; Eat <-> Grease integration
+(my/load-module "grease/eat-grease.el") ;; Eat <-> Grease integration
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions
@@ -439,7 +439,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── File Manager ────────────────────────────────────────────────
 (setq grease-show-hidden t)          ;; Show hidden files (dotfiles) in grease
-(my/load-module "grease.el")       ;; Oil.nvim-style writable file manager
+(my/load-module "grease/grease.el")       ;; Oil.nvim-style writable file manager
 
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style
@@ -452,6 +452,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "pi.el")             ;; AI coding agent frontend
 (my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
 (my/load-module "theme.el")          ;; Firebat theme
+(my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper
 (enable-theme 'firebat)
 
 ;; ── Keybinds — depends on evil, general, which-key being loaded first ──────

@@ -26,7 +26,7 @@
 ;; Opens consult-buffer (includes vterm source).
 ;; Replaces evil-scroll-page-up in normal state.
 (general-def '(normal insert visual)
-  "C-b" 'consult-buffer)
+  "M-i" 'consult-buffer)
 
 ;; ── Line motion (normal mode) ────────────────────────────────
 ;; Capital L/H for end/start of line (like $ and 0 in Vim).
@@ -302,7 +302,9 @@ the compose buffer.  Otherwise starts empty.
       (when (and (derived-mode-p 'eat-mode)
                  eat-terminal
                  (fboundp 'eat-term-send-string))
-        (eat-term-send-string eat-terminal text)))
+        (eat-term-send-string eat-terminal text))
+      (when (fboundp 'evil-normal-state)
+        (evil-normal-state)))
     ;; Clean up compose buffer
     (when (buffer-live-p compose-buf)
       (kill-buffer compose-buf))))
@@ -315,7 +317,9 @@ the compose buffer.  Otherwise starts empty.
         (switch-to-buffer source)
       (switch-to-buffer (other-buffer)))
     (when (buffer-live-p (get-buffer "*eat-compose*"))
-      (kill-buffer (get-buffer "*eat-compose*")))))
+      (kill-buffer (get-buffer "*eat-compose*")))
+    (when (fboundp 'evil-normal-state)
+      (evil-normal-state))))
 
 ;; ═════════════════════════════════════════════════════════════════
 ;;  SPC b r — Previous Buffer
@@ -606,7 +610,8 @@ When called from inside dired:
 (general-def :keymaps 'override
   "M-t" 'my/eat-new
   "M-r" 'consult-recent-file
-  "M-k" 'kill-current-buffer)
+  "M-k" 'kill-current-buffer
+  "M-g" 'zoxide-travel)
 
 ;; Tell Eat to ignore Alt+t, Alt+r, and Alt+k in semi-char mode so Emacs
 ;; can handle them.  define-key modifies the keymap in place, which is
@@ -616,7 +621,9 @@ When called from inside dired:
 (with-eval-after-load 'eat
   (dolist (key '(("M-t" . [?\e ?t])
                  ("M-r" . [?\e ?r])
-                 ("M-k" . [?\e ?k])))
+                 ("M-k" . [?\e ?k])
+                 ("M-g" . [?\e ?g])
+                 ("M-i" . [?\e ?i])))
     (add-to-list 'eat-semi-char-non-bound-keys (cdr key))
     (define-key eat-semi-char-mode-map (kbd (car key)) nil)
     (when (and (boundp 'eat--semi-char-mode-map)
