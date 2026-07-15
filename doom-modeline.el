@@ -69,7 +69,7 @@ Hunks with both + and - are counted as changes ()."
                  (delq nil
                        (list
                         (when (> inserts 0) (format "+ %d" inserts))
-                        (when (> changes 0) (format "≠ %d" changes))
+                        (when (> changes 0) (format "↯ %d" changes))
                         (when (> deletes 0) (format "✕ %d" deletes))))
                  " ")
               "󰦕 "))

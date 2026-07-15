@@ -611,7 +611,7 @@ When called from inside dired:
   "M-t" 'my/eat-new
   "M-r" 'consult-recent-file
   "M-k" 'kill-current-buffer
-  "M-g" 'zoxide-travel)
+  "M-z" 'my/zoxide-travel-dispatch)
 
 ;; Tell Eat to ignore Alt+t, Alt+r, and Alt+k in semi-char mode so Emacs
 ;; can handle them.  define-key modifies the keymap in place, which is
@@ -623,7 +623,8 @@ When called from inside dired:
                  ("M-r" . [?\e ?r])
                  ("M-k" . [?\e ?k])
                  ("M-g" . [?\e ?g])
-                 ("M-i" . [?\e ?i])))
+                 ("M-i" . [?\e ?i])
+                 ("M-z" . [?\e ?z])))
     (add-to-list 'eat-semi-char-non-bound-keys (cdr key))
     (define-key eat-semi-char-mode-map (kbd (car key)) nil)
     (when (and (boundp 'eat--semi-char-mode-map)
@@ -637,6 +638,16 @@ When called from inside dired:
 ;; Note: C-c C-e is taken by eat's own `eat-emacs-mode' (makes buffer
 ;; read-only).  Use C-c C-m (m=compose/message) instead.
 (define-key global-map (kbd "C-c C-m") 'my/eat-compose)
+
+;; ── Zoxide travel dispatch ────────────────────────────────────
+(defun my/zoxide-travel-dispatch ()
+  "Dispatch to `eat-zoxide-travel' or `grease-zoxide-travel' based on context.
+In an eat terminal buffer, cd into the selected directory.
+Otherwise, open the directory in Grease."
+  (interactive)
+  (if (derived-mode-p 'eat-mode)
+      (call-interactively #'eat-zoxide-travel)
+    (call-interactively #'grease-zoxide-travel)))
 
 ;; ── Grease — Oil.nvim-style file manager ─────────────────────
 (general-def :keymaps 'override

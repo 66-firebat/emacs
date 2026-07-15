@@ -453,6 +453,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
 (my/load-module "theme.el")          ;; Firebat theme
 (my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper
+(setq zoxide-travel-callback-function #'grease-open)  ;; Open in Grease instead of find-file
 (enable-theme 'firebat)
 
 ;; ── Keybinds — depends on evil, general, which-key being loaded first ──────
