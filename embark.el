@@ -98,6 +98,40 @@ the minibuffer open."
   ;; candidates like files and bookmarks.
   (keymap-set vertico-map "C-d" #'my/consult-kill-buffer))
 
+;; ── Zoxide embark actions ──────────────────────────────────────
+;; + and - work inside the zoxide consult minibuffer to adjust scores.
+
+(defun embark-zoxide-add (candidate)
+  "Boost the score of the selected zoxide directory by `zoxide-add-amount'.
+Runs `zoxide add --score <amount>' to increment its frecency."
+  (interactive)
+  (zoxide-run nil "add" "--score" (number-to-string zoxide-add-amount) candidate)
+  (embark--restart))
+
+(defun embark-zoxide-subtract (candidate)
+  "Demote the selected zoxide directory by `zoxide-subtract-amount'.
+Parses the current score, removes the entry, then re-adds it
+with a reduced score of `max(1, current - zoxide-subtract-amount)'."
+  (interactive)
+  (let* ((raw (zoxide-run nil "query" "-ls" candidate))
+         (first-line (car (split-string raw "\n" t)))
+         (current-score (and first-line
+                             (car (zoxide-parse-score-line first-line))))
+         (new-score (max 1 (- (or current-score 1)
+                              zoxide-subtract-amount))))
+    (zoxide-run nil "remove" candidate)
+    (zoxide-run nil "add" "--score" (number-to-string new-score) candidate)
+    (message "Zoxide: %s score reduced from %s to %s"
+             candidate (or current-score "?") new-score))
+  (embark--restart))
+
+(defvar-keymap embark-zoxide-path-map
+  :doc "Keymap for embark actions on zoxide-path candidates."
+  :parent embark-general-map
+  "+" #'embark-zoxide-add
+  "-" #'embark-zoxide-subtract)
+
+(add-to-list 'embark-keymap-alist '(zoxide-path . embark-zoxide-path-map))
 
 (provide 'embark)
 ;; embark.el ends here
