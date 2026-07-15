@@ -27,6 +27,12 @@
     "Face for the git branch:hash segment in the modeline."
     :group 'doom-modeline-faces)
 
+  ;; Evil state faces — custom colors
+  (custom-set-faces
+    '(doom-modeline-evil-normal-state ((t (:foreground "#ff4400" :background nil))))
+    '(doom-modeline-evil-insert-state ((t (:foreground "#838383" :background nil))))
+    '(doom-modeline-evil-visual-state  ((t (:foreground "#1bfd9c" :background nil)))))
+
   ;; Helper: git diff stats string
   (defun my/gitsigns-str ()
     "Return git diff stats:  N  C  K, or 󰦕 for non-VC buffers.
@@ -138,10 +144,17 @@ Truncates the branch name according to
      " "
      (doom-modeline--buffer-state-icon)))
 
+  ;; Custom evil segment with a leading space before the icon.
+  (doom-modeline-def-segment my-evil
+    "Evil state with a leading space."
+    (when doom-modeline-modal
+      (let ((evil (doom-modeline--evil)))
+        (when evil (concat (doom-modeline-spc) (doom-modeline-spc) evil)))))
+
   ;; Redefine the main modeline.
   (doom-modeline-def-modeline 'main
     '(eldoc bar window-state workspace-name window-number
-            modals matches follow my-git-branch my-gitsigns my-buffer-info remote-host)
+            my-evil matches follow my-git-branch my-gitsigns my-buffer-info remote-host)
     '(compilation objed-state misc-info project-name persp-name
                   battery grip irc mu4e gnus github debug repl
                   minor-modes input-method indent-info buffer-encoding
