@@ -101,29 +101,90 @@ the minibuffer open."
 ;; ── Zoxide embark actions ──────────────────────────────────────
 ;; + and - work inside the zoxide consult minibuffer to adjust scores.
 
-(defun embark-zoxide-add (candidate)
-  "Boost the score of the selected zoxide directory by `zoxide-add-amount'.
-Runs `zoxide add --score <amount>' to increment its frecency."
-  (interactive)
-  (zoxide-run nil "add" "--score" (number-to-string zoxide-add-amount) candidate)
-  (embark--restart))
+(defun embark--zoxide-refresh (candidate msg)
+  "Re-query zoxide and swap `vertico--candidates' in place.
+CANDIDATE is the path that was modified, MSG is a status message.
+Returns nil so the caller can use (or (embark--zoxide-refresh ...) candidate)."
+  (message "embark--zoxide-refresh: updating candidate list...")
+  (let* ((input (minibuffer-contents-no-properties))
+         (args (if (or (not input) (string-empty-p input))
+                   '("query" "-ls")
+                 (list "query" "-ls" input)))
+         (raw (apply #'zoxide-run nil args))
+         (lines (remove "" (split-string raw "\n" t)))
+         (new-candidates (delq nil (mapcar #'zoxide-consult-format lines))))
+    (message "embark--zoxide-refresh: input=%S results=%d"
+             input (length new-candidates))
+    (when (and (boundp 'vertico--candidates) vertico--candidates)
+      (message "embark--zoxide-refresh: swapping vertico candidates (%d → %d)"
+               (length vertico--candidates) (length new-candidates))
+      (setq vertico--candidates new-candidates
+            vertico--total (length vertico--candidates))
+      ;; Clamp index
+      (if (zerop vertico--total)
+          (setq vertico--index -1)
+        (when (>= vertico--index vertico--total)
+          (setq vertico--index (max 0 (1- vertico--total)))))
+      ;; Re-render
+      (vertico--prompt-selection)
+      (vertico--display-count)
+      (vertico--display-candidates (vertico--arrange-candidates))
+      (message "embark--zoxide-refresh: done — %s" msg))
+    nil))
 
-(defun embark-zoxide-subtract (candidate)
+(defun embark-zoxide-add (&optional candidate)
+  "Boost the score of the selected zoxide directory by `zoxide-add-amount'.
+Runs `zoxide add --score <amount>' to increment its frecency.
+CANDIDATE is provided by embark when called from the minibuffer;
+when called directly from a keybinding it is read from vertico."
+  (interactive)
+  (unless candidate
+    (setq candidate (vertico--candidate))
+    (when (and candidate (fboundp 'consult--tofu-strip))
+      (setq candidate (consult--tofu-strip candidate)))
+    ;; Strip the score prefix (e.g. " 798.0    /path") to get just the path.
+    ;; If already just a path, fall through.
+    (setq candidate (or (cdr (zoxide-parse-score-line candidate)) candidate)))
+  (message "embark-zoxide-add: candidate=%S" candidate)
+  (when candidate
+    (zoxide-run nil "add" "--score" (number-to-string zoxide-add-amount) candidate)
+    (message "embark-zoxide-add: zoxide add done")
+    (embark--zoxide-refresh candidate
+      (format "%s +%d" candidate zoxide-add-amount)))
+  ;; Return candidate so embark can chain other actions
+  candidate)
+
+(defun embark-zoxide-subtract (&optional candidate)
   "Demote the selected zoxide directory by `zoxide-subtract-amount'.
 Parses the current score, removes the entry, then re-adds it
-with a reduced score of `max(1, current - zoxide-subtract-amount)'."
+with a reduced score of `max(1, current - zoxide-subtract-amount)'.
+CANDIDATE is provided by embark when called from the minibuffer;
+when called directly from a keybinding it is read from vertico."
   (interactive)
-  (let* ((raw (zoxide-run nil "query" "-ls" candidate))
-         (first-line (car (split-string raw "\n" t)))
-         (current-score (and first-line
-                             (car (zoxide-parse-score-line first-line))))
-         (new-score (max 1 (- (or current-score 1)
-                              zoxide-subtract-amount))))
-    (zoxide-run nil "remove" candidate)
-    (zoxide-run nil "add" "--score" (number-to-string new-score) candidate)
-    (message "Zoxide: %s score reduced from %s to %s"
-             candidate (or current-score "?") new-score))
-  (embark--restart))
+  (unless candidate
+    (setq candidate (vertico--candidate))
+    (when (and candidate (fboundp 'consult--tofu-strip))
+      (setq candidate (consult--tofu-strip candidate)))
+    ;; Strip the score prefix (e.g. " 798.0    /path") to get just the path.
+    ;; If already just a path, fall through.
+    (setq candidate (or (cdr (zoxide-parse-score-line candidate)) candidate)))
+  (message "embark-zoxide-subtract: candidate=%S" candidate)
+  (when candidate
+    (let* ((raw (zoxide-run nil "query" "-ls" candidate))
+           (first-line (car (split-string raw "\n" t)))
+           (current-score (and first-line
+                               (car (zoxide-parse-score-line first-line))))
+           (new-score (max 1 (- (or current-score 1)
+                                zoxide-subtract-amount))))
+      (message "embark-zoxide-subtract: current=%s new=%s"
+               (or current-score "?") new-score)
+      (zoxide-run nil "remove" candidate)
+      (zoxide-run nil "add" "--score" (number-to-string new-score) candidate)
+      (message "embark-zoxide-subtract: remove+add done")
+      (embark--zoxide-refresh candidate
+        (format "%s → %d" candidate new-score))))
+  ;; Return candidate so embark can chain other actions
+  candidate)
 
 (defvar-keymap embark-zoxide-path-map
   :doc "Keymap for embark actions on zoxide-path candidates."
