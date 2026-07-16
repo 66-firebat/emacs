@@ -611,7 +611,9 @@ When called from inside dired:
   "M-t" 'my/eat-new
   "M-r" 'consult-recent-file
   "M-k" 'kill-current-buffer
-  "M-z" 'my/zoxide-travel-dispatch)
+  "M-z" 'my/zoxide-travel-dispatch
+  "M-w" 'my/smart-other-window
+  "M-W" 'my/smart-close-window)
 
 ;; Tell Eat to ignore Alt+t, Alt+r, and Alt+k in semi-char mode so Emacs
 ;; can handle them.  define-key modifies the keymap in place, which is
@@ -624,7 +626,9 @@ When called from inside dired:
                  ("M-k" . [?\e ?k])
                  ("M-g" . [?\e ?g])
                  ("M-i" . [?\e ?i])
-                 ("M-z" . [?\e ?z])))
+                 ("M-z" . [?\e ?z])
+                 ("M-w" . [?\e ?w])
+                 ("M-W" . [?\e ?W])))
     (add-to-list 'eat-semi-char-non-bound-keys (cdr key))
     (define-key eat-semi-char-mode-map (kbd (car key)) nil)
     (when (and (boundp 'eat--semi-char-mode-map)
@@ -648,6 +652,24 @@ Otherwise, open the directory in Grease."
   (if (derived-mode-p 'eat-mode)
       (call-interactively #'eat-zoxide-travel)
     (call-interactively #'grease-zoxide-travel)))
+
+;; ── Smart window navigation ────────────────────────────────────
+
+(defun my/smart-other-window ()
+  "Switch to the other window.  If only one window exists, split right first."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (progn
+        (split-window-right)
+        (other-window 1))
+    (other-window 1)))
+
+(defun my/smart-close-window ()
+  "Close the current window.  If it's the last window in the frame, do nothing."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (message "Last window in frame, doing nothing")
+    (delete-window)))
 
 ;; ── Grease — Oil.nvim-style file manager ─────────────────────
 (general-def :keymaps 'override

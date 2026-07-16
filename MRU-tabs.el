@@ -85,13 +85,13 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
 ;; ╚══════════════════════════════════════════════════════════════╝
 
 (defvar my/tab-group-categories
-  '(("Code"    ""   emacs-lisp-mode lisp-mode python-mode go-mode
+  '(("Code"    "󰣕"   emacs-lisp-mode lisp-mode python-mode go-mode
                rust-mode java-mode c-mode c++-mode c-ts-mode
                c++-ts-mode javascript-mode js-mode js2-mode
                typescript-mode tsx-mode css-mode web-mode
                nix-mode sh-mode bash-mode yaml-mode json-mode sql-mode)
     ("Grease"  "󰏇"   grease-mode)
-    ("Docs"    ""   org-mode markdown-mode text-mode)
+    ("Docs"    ""   org-mode markdown-mode text-mode)
     ("Config"  ""   conf-mode)
     ("Dired"   "󰙅"   dired-mode)
     ("Eat"     ""   eat-mode)
@@ -324,11 +324,14 @@ Format:       42 "
                 (icon    (cadr cat)))
       (let* ((line-str (format-mode-line '("%l") nil win))             ; OPEN 2 (let*, format-mode-line)
              (line-str (if (stringp line-str) line-str "?"))           ; OPEN 1 (if)
+             (padded   (if (< (length line-str) 6)                    ; OPEN 2 (if, length)
+                           (concat (make-string (- 6 (length line-str)) ?-) line-str)
+                         line-str))                                     ; 6-char hyphen-padded ("----50")
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)
          (propertize (format " %s " icon)   'face face)                ; OPEN 1 (propertize)
-         (propertize (format " %5s " line-str) 'face face)          ; OPEN 1 (propertize)
-         (propertize "" 'face face))))))                              ; OPEN 1 (propertize) CLOSE 5
+         (propertize (format " %s " padded) 'face face)             ; OPEN 1 (propertize)
+         (propertize "" 'face face))))))                              ; OPEN 1 (propertize) CLOSE 8
 
 ;; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 7 — Header-line :eval wrappers                    ║

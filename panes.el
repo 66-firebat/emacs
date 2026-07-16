@@ -38,12 +38,12 @@
                         ;; No right border column to set
                         ((not has-right)          nil)
                         ;; Selected window always gets ┤
-                        ((eq win current)         ?╎)
+                        ((eq win current)         ?┼)
                         ;; Window immediately left of selected gets ├
                         ((and left-of-current
-                              (eq win left-of-current)) ?╎)
+                              (eq win left-of-current)) ?┼)
                         ;; Everything else gets │
-                        (t                        ?╎))))
+                        (t                        ?┼))))
         (when char
           (let* ((table (or (window-display-table win)
                            (set-window-display-table win (make-display-table))))
