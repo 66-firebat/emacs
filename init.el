@@ -444,6 +444,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style
 (my/load-module "consult-buffer.el") ;; Custom sources loaded after consult
+(my/load-module "vertico.el")      ;; Vertico count on right side
 
 ;; ── Languages ───────────────────────────────────────────────────────────────
 (my/load-module "julia.el")          ;; Julia tree-sitter mode
