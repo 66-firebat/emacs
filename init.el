@@ -429,7 +429,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
-(my/load-module "eat.el")            ;; Terminal emulator inside Emacs
+(my/load-module "eat-firemacs.el")   ;; Terminal emulator inside Emacs
 (my/load-module "grease/eat-grease.el") ;; Eat <-> Grease integration
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
@@ -460,6 +460,9 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper
 (setq zoxide-travel-callback-function #'grease-open)  ;; Open in Grease instead of find-file
 (enable-theme 'firebat)
+
+;; ── Options ─────────────────────────────────────────────────────────────────
+(my/load-module "options/magit-options.el") ;; Magit / ediff options
 
 ;; ── Keybinds — depends on evil, general, which-key being loaded first ──────
 (my/load-module "keybinds.el")

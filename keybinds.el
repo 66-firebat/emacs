@@ -201,51 +201,6 @@ n/N works with the same search pattern."
 
 
 ;; ═════════════════════════════════════════════════════════════════
-;;  SPC t t — Spawn Eat Terminal
-;; ═════════════════════════════════════════════════════════════════
-
-(defvar my-eat-index-cache -1
-  "Index of the most recently spawned eat terminal.")
-
-(defun my/eat-next-available ()
-  "Return the lowest unused eat index (1, 2, 3, ...).
-Scans all buffer names for \"<N> \" prefixes."
-  (let ((i 1))
-    (while (let ((target (format "%d " i)))
-             (catch 'exists
-               (dolist (b (buffer-list) nil)
-                 (when (string-prefix-p target (buffer-name b))
-                   (throw 'exists t)))))
-      (setq i (1+ i)))
-    i))
-
-(defun my/eat-new ()
-  "Spawn a new eat terminal at the lowest available index.
-Buffer is named like \"0  19950\" (index +  + PID)."
-  (interactive)
-  (let ((index (my/eat-next-available))
-        (shell (or explicit-shell-file-name
-                   (getenv "ESHELL")
-                   shell-file-name))
-        (cwd default-directory))
-    (setq my-eat-index-cache index)
-    (let ((buf-name (format "%d  waiting" index)))
-      (with-current-buffer (get-buffer-create buf-name)
-        (setq default-directory cwd)
-        (eat-mode)
-        (pop-to-buffer-same-window (current-buffer))
-        (unless (and eat-terminal
-                     (eat-term-parameter eat-terminal 'eat--process))
-          (eat-exec (current-buffer) (buffer-name)
-                    "/usr/bin/env" nil
-                    (list "sh" "-c" shell)))
-        ;; Rename buffer to include the PID
-        (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
-                    ((process-live-p proc)))
-          (rename-buffer (format "%d  %d" index (process-id proc))))
-        (current-buffer)))))
-
-;; ═════════════════════════════════════════════════════════════════
 ;;  Eat Compose — Full Emacs buffer for typing into eat
 ;; ═════════════════════════════════════════════════════════════════
 ;; Opens a temporary buffer where you can write with full Emacs

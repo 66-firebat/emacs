@@ -62,4 +62,45 @@ Used by window--adjust-process-windows for ongoing resize handling."
 ;; Fix initial terminal width by intercepting eat-term-resize
 (advice-add 'eat-term-resize :around #'my/eat-resize-correct-line-prefix)
 
-(provide 'eat)
+;; ── Spawn Terminal (M-t) ─────────────────────────────────────────────────────
+;; Indexed eat sessions: buffers are named "<index>  <PID>" and the lowest
+;; free index is reused first.  Bound to M-t in keybinds.el.
+
+(defun my/eat-next-available ()
+  "Return the lowest unused eat index (1, 2, 3, ...).
+Scans all buffer names for \"<N> \" prefixes."
+  (let ((i 1))
+    (while (let ((target (format "%d " i)))
+             (catch 'exists
+               (dolist (b (buffer-list) nil)
+                 (when (string-prefix-p target (buffer-name b))
+                   (throw 'exists t)))))
+      (setq i (1+ i)))
+    i))
+
+(defun my/eat-new ()
+  "Spawn a new eat terminal at the lowest available index.
+Buffer is named like \"1  19950\" (index +  + PID)."
+  (interactive)
+  (let ((index (my/eat-next-available))
+        (shell (or explicit-shell-file-name
+                   (getenv "ESHELL")
+                   shell-file-name))
+        (cwd default-directory))
+    (let ((buf-name (format "%d  waiting" index)))
+      (with-current-buffer (get-buffer-create buf-name)
+        (setq default-directory cwd)
+        (eat-mode)
+        (pop-to-buffer-same-window (current-buffer))
+        (unless (and eat-terminal
+                     (eat-term-parameter eat-terminal 'eat--process))
+          (eat-exec (current-buffer) (buffer-name)
+                    "/usr/bin/env" nil
+                    (list "sh" "-c" shell)))
+        ;; Rename buffer to include the PID
+        (when-let* ((proc (eat-term-parameter eat-terminal 'eat--process))
+                    ((process-live-p proc)))
+          (rename-buffer (format "%d  %d" index (process-id proc))))
+        (current-buffer)))))
+
+(provide 'eat-firemacs)
