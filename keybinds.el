@@ -601,13 +601,13 @@ When called from inside dired:
 
 ;; ── Zoxide travel dispatch ────────────────────────────────────
 (defun my/zoxide-travel-dispatch ()
-  "Dispatch to `eat-zoxide-travel' or `grease-zoxide-travel' based on context.
+  "Dispatch to `eat-zoxide-travel' or `greaszy-travel' based on context.
 In an eat terminal buffer, cd into the selected directory.
 Otherwise, open the directory in Grease."
   (interactive)
   (if (derived-mode-p 'eat-mode)
       (call-interactively #'eat-zoxide-travel)
-    (call-interactively #'grease-zoxide-travel)))
+    (call-interactively #'greaszy-travel)))
 
 ;; ── Smart window navigation ────────────────────────────────────
 

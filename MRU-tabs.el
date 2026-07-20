@@ -325,7 +325,7 @@ Format:       42 "
       (let* ((line-str (format-mode-line '("%l") nil win))             ; OPEN 2 (let*, format-mode-line)
              (line-str (if (stringp line-str) line-str "?"))           ; OPEN 1 (if)
              (padded   (if (< (length line-str) 6)                    ; OPEN 2 (if, length)
-                           (concat (make-string (- 6 (length line-str)) ?-) line-str)
+                           (concat (make-string (- 6 (length line-str)) ?·) line-str)
                          line-str))                                     ; 6-char hyphen-padded ("----50")
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)

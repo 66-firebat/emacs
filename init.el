@@ -430,7 +430,6 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
 (my/load-module "eat-firemacs.el")   ;; Terminal emulator inside Emacs
-(my/load-module "grease/eat-grease.el") ;; Eat <-> Grease integration
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
 (my/load-module "embark.el")         ;; Context-aware actions
@@ -438,12 +437,8 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "diff-hl.el")        ;; Highlight uncommitted changes
 
 ;; ── File Manager ────────────────────────────────────────────────
-(setq grease-show-hidden t)          ;; Show hidden files (dotfiles) in grease
+(my/load-module "options/grease-options.el") ;; Grease option switches (pre-load)
 (my/load-module "grease/grease.el")       ;; Oil.nvim-style writable file manager
-(setq grease-visit-alt-directory-callback   ;; Shift+Enter on dir → eat terminal
-      (lambda (dir)
-        (let ((default-directory dir))
-          (call-interactively #'eat))))
 
 ;; ── Orderless Completion Addons ─────────────────────────────────────────────
 (my/load-module "orderless.el")      ;; Flexible completion style
@@ -457,8 +452,7 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "pi.el")             ;; AI coding agent frontend
 (my/load-module "wl-clipboard.el")   ;; Wayland clipboard integration
 (my/load-module "theme.el")          ;; Firebat theme
-(my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper
-(setq zoxide-travel-callback-function #'grease-open)  ;; Open in Grease instead of find-file
+;; (my/load-module "emacs-zoxide/zoxide.el")  ;; Zoxide directory jumper (eat still depends on this for spawning the eat-dispatch command from an eat buffer"
 (enable-theme 'firebat)
 
 ;; ── Options ─────────────────────────────────────────────────────────────────
