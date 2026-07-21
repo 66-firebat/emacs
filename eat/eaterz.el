@@ -131,12 +131,30 @@ with an appropriate directory (or no argument for `default-directory').
 The dispatcher uses `derived-mode-p', so entries match any mode derived
 from the key symbol.")
 
+(defcustom my/eat-kill-grease-on-spawn t
+  "When non-nil, kill the grease buffer after spawning an eat terminal from it.
+If nil, the grease buffer is left alive (buried behind the eat buffer)."
+  :type 'boolean
+  :group 'eat)
+
 (defun my/eat-new-from-grease ()
   "Spawn eat in the root directory of the current grease buffer.
+Saves any pending grease changes via `grease-save-all-buffers',
+which handles its own prompts.  If the user cancels the save,
+`user-error' is signaled and no eat buffer is created.
 Falls back to `default-directory' when `grease--root-dir' is nil.
-If grease is not loaded, warns and falls through to `my/eat-new'."
+If grease is not loaded, warns and falls through to `my/eat-new'.
+When `my/eat-kill-grease-on-spawn' is non-nil, kills the grease
+buffer after spawning to prevent clutter."
   (if (featurep 'grease)
-      (my/eat-new grease--root-dir)
+      (let ((grease-buf (current-buffer)))
+        (when (fboundp 'grease-save-all-buffers)
+          (with-current-buffer grease-buf
+            (grease-save-all-buffers)))
+        (my/eat-new grease--root-dir)
+        (when (and my/eat-kill-grease-on-spawn
+                   (buffer-live-p grease-buf))
+          (kill-buffer grease-buf)))
     (display-warning
      'eat
      (concat "grease-mode detected but grease.el is not loaded; "
