@@ -1,6 +1,3 @@
 [submodule "grease"]
 	path = grease
 	url = https://github.com/mwac-dev/grease.el.git
-[submodule "emacs-zoxide"]
-	path = emacs-zoxide
-	url = git@66-firebat:66-firebat/emacs-zoxide.git
