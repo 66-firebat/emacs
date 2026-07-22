@@ -429,6 +429,28 @@ Re-runs setup if the terminal was visited but KKP isn't active."
 (my/load-module "jumpring.el")       ;; Global C-o/C-i jump ring
 
 ;; ── Terminal ────────────────────────────────────────────────────────────────
+
+;; Ghostel — terminal emulator powered by libghostty-vt (Ghostty's VT engine).
+;; Native Zig dynamic module handles VT parsing, rendering, and PTY I/O
+;; off the main Emacs thread.  Features: Kitty keyboard + graphics protocols,
+;; TRAMP remote terminals, prompt-aware navigation, progress notifications.
+;; Pre-built binary auto-downloaded on first use.
+(use-package ghostel
+  :ensure t
+  :defer t
+  :custom
+  (ghostel-shell-integration t)      ;; auto-inject shell integration (OSC 7, OSC 133)
+  (ghostel-scrollback-size nil)      ;; unlimited scrollback (like eat)
+  (ghostel-initial-input-mode 'semi-char)) ;; same default input mode as eat
+
+;; Evil-mode integration — synchronises terminal cursor with Emacs point
+;; so normal-mode hjkl navigation works correctly in ghostel buffers.
+(use-package evil-ghostel
+  :ensure t
+  :defer t
+  :after (ghostel evil)
+  :hook (ghostel-mode . evil-ghostel-mode))
+
 (my/load-module "eat/eaterz.el")   ;; Terminal emulator inside Emacs
 
 ;; ── Editing ─────────────────────────────────────────────────────────────────
