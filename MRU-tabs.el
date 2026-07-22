@@ -48,7 +48,7 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
   :group 'MRU-tabs)
 
 (defface my/ct-group-icon
-  '((t (:background "#ff4400" :foreground "#2b2b2b" :weight bold)))
+  '((t (:background "#2b2b2b" :foreground "#ff4400" :weight bold)))
   "Face for the group icon segment."
   :group 'MRU-tabs)
 
@@ -315,7 +315,7 @@ The MRU is only updated by post-command-hook in the focused window."
 
 (defun my/ct--group-icon (&optional window)
   "Return the group icon segment string for WINDOW's buffer.
-Format:       42 "
+Format:        42 "
   (let ((win (or window (selected-window)))                              ; OPEN 1 (let)
         (buf (window-buffer (or window (selected-window)))))
     (when-let* ((groups  (my/tab-group-for-buffer buf))                ; OPEN 2 (when-let*, let*)
@@ -329,9 +329,10 @@ Format:       42 "
                          line-str))                                     ; 6-char hyphen-padded ("----50")
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)
-         (propertize (format " %s " icon)   'face face)                ; OPEN 1 (propertize)
-         (propertize (format " %s " padded) 'face face)             ; OPEN 1 (propertize)
-         (propertize "" 'face face))))))                              ; OPEN 1 (propertize) CLOSE 8
+         (propertize (format " %s " icon)  'face 'my/ct-group-icon)
+         (propertize ""                    'face 'my/ct-group-separator)
+         (propertize (format " %s " padded) 'face 'my/ct-group-linenumber)
+         (propertize ""                   'face 'my/ct-group-linenumber))))))                              ; OPEN 1 (propertize) CLOSE 8
 
 ;; ╔══════════════════════════════════════════════════════════════╗
 ;; ║  SECTION 7 — Header-line :eval wrappers                    ║
