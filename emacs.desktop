@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Emacs
 Comment=Emacs text editor with eat terminal
-Exec=ghostty -e bash -lc 'emacs --daemon -l $HOME/fire_profile/configuration_modules/emacs/init.el 2>/dev/null; until [ -S "$XDG_RUNTIME_DIR/emacs/server" ]; do sleep 0.1; done; emacsclient -nw --eval "(my/eat-new)"'
+Exec=ghostty -e bash -lc 'emacs --daemon -l $HOME/.config/emacs/init.el 2>/dev/null; until [ -S "$XDG_RUNTIME_DIR/emacs/server" ]; do sleep 0.1; done; emacsclient -nw --eval "(my/eat-new)"'
 Icon=emacs
 Terminal=false
 Type=Application
