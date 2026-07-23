@@ -339,7 +339,10 @@ Format:        42 "
                          line-str))                                     ; 6-char hyphen-padded ("----50")
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)
-         (propertize (format "  %s  " icon)  'face 'my/ct-group-icon)
+         (propertize " "                       'face 'my/ct-group-icon)
+         (propertize " "                       'face 'my/ct-group-icon)
+         (propertize (format "%s " icon)  'face 'my/ct-group-icon)
+         (propertize " "                       'face 'my/ct-group-icon)
          (propertize ""                    'face 'my/ct-group-separator)
          (propertize (format " %s " padded) 'face 'my/ct-group-linenumber)
          (propertize ""                   'face 'my/ct-group-linenumber))))))                              ; OPEN 1 (propertize) CLOSE 8
