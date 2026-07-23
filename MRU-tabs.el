@@ -57,6 +57,16 @@ tab bar with icons.  All rendering is self-built in raw Emacs Lisp."
   "Face for the overflow indicator."
   :group 'MRU-tabs)
 
+(defface my/ct-group-separator
+  '((t (:background "#ff4400" :foreground "#2b2b2b")))
+  "Face for the group separator icon."
+  :group 'MRU-tabs)
+
+(defface my/ct-group-linenumber
+  '((t (:background "#ff4400" :foreground "#2b2b2b" :weight bold)))
+  "Face for the group line number segment."
+  :group 'MRU-tabs)
+
 (defvar my/ct--overflow-icons
   [" "       ;; 0 — unused (no overflow)
    "󰲠"      ;; 1
@@ -325,11 +335,11 @@ Format:        42 "
       (let* ((line-str (format-mode-line '("%l") nil win))             ; OPEN 2 (let*, format-mode-line)
              (line-str (if (stringp line-str) line-str "?"))           ; OPEN 1 (if)
              (padded   (if (< (length line-str) 6)                    ; OPEN 2 (if, length)
-                           (concat (make-string (- 6 (length line-str)) ?·) line-str)
+                           (concat (make-string (- 6 (length line-str)) ?-) line-str)
                          line-str))                                     ; 6-char hyphen-padded ("----50")
              (face     'my/ct-group-icon))
         (concat                                                        ; OPEN 1 (concat)
-         (propertize (format " %s " icon)  'face 'my/ct-group-icon)
+         (propertize (format "  %s  " icon)  'face 'my/ct-group-icon)
          (propertize ""                    'face 'my/ct-group-separator)
          (propertize (format " %s " padded) 'face 'my/ct-group-linenumber)
          (propertize ""                   'face 'my/ct-group-linenumber))))))                              ; OPEN 1 (propertize) CLOSE 8
