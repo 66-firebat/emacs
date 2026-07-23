@@ -1,6 +1,6 @@
 # ghostel_bringup — Replace Eat with Ghostel, 1:1
 
-**Status:** PLANNING — mapping complete, implementation pending
+**Status:** PLANNING — mapping complete, implementation in progress
 **Date:** 2026-07-23
 
 ---
@@ -30,7 +30,7 @@ configuration, preserving **every feature** at 1:1 parity:
 
 | Eat API | Ghostel API | Notes |
 |---------|-------------|-------|
-| `derive-mode-p 'eat-mode` | `derived-mode-p 'ghostel-mode` | Direct substitution |
+| `derived-mode-p 'eat-mode` | `derived-mode-p 'ghostel-mode` | Direct substitution |
 | `eat-mode-hook` | `ghostel-mode-hook` | Direct substitution |
 | `eat-enable-shell-integration` | `ghostel-shell-integration` | Already set in init.el |
 | `eat-default-input-mode` | `ghostel-initial-input-mode` | Already set: `'semi-char` |
@@ -42,72 +42,97 @@ configuration, preserving **every feature** at 1:1 parity:
 | `eat-term-parameter term 'eat--process` | `ghostel--process` (buffer-local) | Process object |
 | `eat-term-display-cursor` | `ghostel--cursor-position` | Returns `(col . row)` |
 | `eat-term-send-string` / `eat--send-string` | `ghostel-send-string` | Public API |
-| `eat-exec` | `ghostel` command or `(ghostel :cwd DIR)` | Programmatic spawn |
-| `eat-term-resize` advice | TBD — ghostel may not need this | See §Width Correction below |
-| `window-adjust-process-window-size-function` | TBD | See §Width Correction |
+| `eat-exec` | `ghostel` command (see below) | Spawning |
+| `eat-term-resize` advice | TBD | See Width Correction below |
+| `window-adjust-process-window-size-function` | TBD | See Width Correction |
 | `evil-ghostel-mode` minor mode | `evil-ghostel-mode` | Already configured in init.el |
 | `eat-term-parameter` (generic getter) | ghostel buffer-local vars | `ghostel--process`, `ghostel--term`, etc. |
 
 ---
 
-## Ghostel Spawning API
-
-Ghostel's `ghostel` command supports programmatic spawn:
+## Ghostel Spawning API (verified from source at ghostel.el L5293)
 
 ```elisp
-(ghostel)                          ;; Interactive — new buffer, prompts for name
-(ghostel :cwd "/some/dir")         ;; Programmatic — spawn in directory
-(ghostel :cwd "/some/dir" :name "my-term")  ;; With explicit buffer name
+(defun ghostel (&optional arg)
+  (let* ((fresh (and arg (not (numberp arg))))     ;; t, C-u = always fresh
+         (identity (cond (fresh nil)
+                         ((numberp arg) (format "%s<%d>" ghostel-buffer-name arg))
+                         (t ghostel-buffer-name))) ;; no arg = *ghostel*
+         (existing (and (not fresh)                ;; fresh=t => this is nil
+                        (ghostel--find-buffer-by-identity identity))))
+    (if existing
+        (pop-to-buffer existing ...)    ;; just switches to existing
+      (with-current-buffer buffer
+        (ghostel--start-process)        ;; reads default-directory
+        (ghostel--apply-initial-input-mode)))
+    buffer))
 ```
 
-The `ghostel-buffer-name-function` (defcustom) controls buffer naming.
-Default format: `*ghostel*<N>` or title-based. We'll override for our
-`"N  PID"` scheme.
+| Call | Behaviour |
+|------|-----------|
+| `(ghostel)` | Creates `*ghostel*` **or switches** if it already exists |
+| `(ghostel t)` | **Always** fresh buffer — skips existence check entirely |
+| `(ghostel 3)` | Goes to `*ghostel*<3>` or creates it with that identity |
+
+Key facts from source:
+- **No `:cwd` keyword** — `ghostel--start-process` reads `default-directory`
+  from the buffer, and `generate-new-buffer` inherits the caller's dynamic binding.
+- **`ghostel-buffer-name`** (defcustom, default `"*ghostel*"`) is the base name
+  passed to `ghostel--create` -> `generate-new-buffer`.
+- **`ghostel-other`** is a switching command, not a spawner — not useful here.
+
+Our spawning pattern:
+```elisp
+(let ((default-directory cwd)                   ;; set CWD
+      (ghostel-buffer-name (format "%d " index))) ;; base name for create
+  (ghostel t))  ;; t = always fresh, never switches
+;; Then rename to "N  <PID>" after process is live
+```
 
 ---
 
 ## Files to Modify (Complete Inventory)
 
-### 1. NEW: `ghostel-firemacs.el` — Replaces `eat/eaterz.el`
+### 1. NEW: `ghostel/ghostfire.el` — Replaces `eat/eaterz.el`
 
-**Contains everything currently in `eat/eaterz.el` + `eat-firemacs.el`:**
-- `use-package ghostel` configuration
-- Terminal width correction (or removal — see below)
-- Evil insert cursor snap (or removal — evil-ghostel may handle)
+**Contains everything currently in `eat/eaterz.el`:**
+- `use-package ghostel` + `use-package evil-ghostel` (moved from init.el)
 - Indexed spawning: `my/ghostel-next-available`, `my/ghostel-new`
 - Mode-aware dispatch: `my/ghostel-new-dispatch-alist`, `my/ghostel-new-dispatch`
 - Grease handler: `my/ghostel-new-from-grease` with kill-grease-on-spawn
-- **Eaterz → Zoxide travel port** (full consult+embark pipeline using ghostel APIs)
+- Ghostfire (eaterz port): zoxide + consult + embark pipeline
+- Compose buffer: `my/ghostel-compose` / send / cancel
+- Semi-char non-bound keys block
 
 ### 2. `init.el` — Terminal section
 
 Changes:
 ```diff
 - (my/load-module "eat/eaterz.el")   ;; Terminal emulator inside Emacs
-+ (my/load-module "ghostel-firemacs.el")  ;; Ghostel terminal emulator config
++ (my/load-module "ghostel/ghostfire.el")  ;; Ghostel terminal config
 ```
 
 The existing `use-package ghostel` and `use-package evil-ghostel` blocks
-move *into* `ghostel-firemacs.el` (consolidated).
+move *into* `ghostel/ghostfire.el` (consolidated).
 
 ### 3. `keybinds.el` — Extensive eat references
 
 | Current | Change |
 |---------|--------|
-| `M-t` → `my/eat-new-dispatch` | → `my/ghostel-new-dispatch` |
-| `M-z` → `my/zoxide-travel-dispatch` | → update `eat-mode` check to `ghostel-mode` |
-| `C-e` → `my/dired-from-eat` | → update `eat-mode` check to `ghostel-mode` |
-| `my/eat-compose` / `my/eat-compose-send` / `my/eat-compose-cancel` | → `my/ghostel-compose` variants |
-| `my/eat-buffer-list` | → `my/ghostel-buffer-list` |
-| `my/eat-spawn-at-index` | → `my/ghostel-spawn-at-index` |
-| Eat non-bound keys dolist | → Ghostel non-bound keys dolist |
-| `C-c C-m` → `my/eat-compose` | → `my/ghostel-compose` |
+| `M-t` -> `my/eat-new-dispatch` | -> `my/ghostel-new-dispatch` |
+| `M-z` -> `my/zoxide-travel-dispatch` | -> update `eat-mode` check to `ghostel-mode` |
+| `C-e` -> `my/dired-from-eat` | -> update `eat-mode` check to `ghostel-mode` |
+| `my/eat-compose` / send / cancel | -> `my/ghostel-compose` variants |
+| `my/eat-buffer-list` | -> `my/ghostel-buffer-list` |
+| `my/eat-spawn-at-index` | -> `my/ghostel-spawn-at-index` |
+| Eat non-bound keys dolist | -> move to `ghostel/ghostfire.el` |
+| `C-c C-m` -> `my/eat-compose` | -> `my/ghostel-compose` |
 
 ### 4. `consult-buffer.el` — Eat source
 
 Changes:
-- `my/consult-eat-source` → `my/consult-ghostel-source`
-- `my/consult-source-buffer-no-eat` → `my/consult-source-buffer-no-ghostel`
+- `my/consult-eat-source` -> `my/consult-ghostel-source`
+- `my/consult-source-buffer-no-eat` -> `my/consult-source-buffer-no-ghostel`
 - Replace `eat-mode` checks with `ghostel-mode`
 - Replace `my/eat-spawn-at-index` with `my/ghostel-spawn-at-index`
 - Replace `my/eat-buffer-list` with `my/ghostel-buffer-list`
@@ -128,18 +153,17 @@ Changes:
 
 ### 7. `doom-modeline.el` — Git segment skip
 
-**No change needed.** `my/gitsigns-str` already returns nil for non-file buffers
-via `(not buffer-file-name)` — a generic guard that works for eat, ghostel, dired,
-and any terminal backend. The comment "not dired, eat, etc." is just commentary;
-the actual code has no mode-specific check at all. Backend-agnostic by design.
+**No change needed.** `my/gitsigns-str` uses `(not buffer-file-name)` — a
+generic guard that works for all non-file buffers regardless of terminal
+backend. Backend-agnostic by design.
 
-### 8. `grease.el` — Grease ↔ Terminal integration
+### 8. `grease.el` — Grease <-> Terminal integration
 
 Changes:
-- Rename `grease-eat-cd-on-quit` → `grease-ghostel-cd-on-quit`
-- `grease--cd-origin-eat` → `grease--cd-origin-ghostel`
-- Replace `eat-mode` check → `ghostel-mode`
-- Replace `eat-term-parameter` + `eat--send-string` → `ghostel-send-string`
+- Rename `grease-eat-cd-on-quit` -> `grease-ghostel-cd-on-quit`
+- `grease--cd-origin-eat` -> `grease--cd-origin-ghostel`
+- Replace `eat-mode` check -> `ghostel-mode`
+- Replace `eat-term-parameter` + `eat--send-string` -> `ghostel-send-string`
 
 ### 9. `custom.el` — Package list
 
@@ -148,13 +172,9 @@ Changes:
 + ghostel
 ```
 
-### 10. DELETE: `eat-firemacs.el` — Stale duplicate, never loaded
+### 10. DELETE: `eat-firemacs.el` — Already done (stale duplicate)
 
-`eat-firemacs.el` is a stale/outdated copy of `eat/eaterz.el`. Both provide
-`eat-firemacs`, but init.el only loads `eat/eaterz.el`. The file serves no
-purpose — safe to delete now, before any ghostel work begins.
-
-### 11. DELETE: `eat/eaterz.el` — Replaced by `ghostel-firemacs.el`
+### 11. DELETE: `eat/eaterz.el` — Replaced by `ghostel/ghostfire.el`
 
 ---
 
@@ -173,22 +193,17 @@ directly. We need to verify whether ghostel has the same issue.
 1. First, test ghostel with statuscolumn enabled — does it render correctly?
 2. If ghostel handles this natively (likely since it reads window metrics
    from the native side), remove the width correction entirely.
-3. If ghostel has the same issue, we'll need to find the equivalent hook
-   (possibly `ghostel--term-resize` or similar internal).
+3. If ghostel has the same issue, we'll need to find the equivalent hook.
 
 ---
 
 ## Evil Cursor Snap Analysis
 
-**Eat:**
-`my/eat-snap-cursor-on-insert` hooks into `evil-insert-state-entry-hook`,
-calls `eat-term-display-cursor` and `goto-char`.
+**Eat:** `my/eat-snap-cursor-on-insert` hooks into `evil-insert-state-entry-hook`.
 
-**Ghostel:**
-`evil-ghostel-mode` (already configured) handles cursor synchronization
-automatically — it syncs point ↔ terminal cursor on evil state transitions
-via `evil-ghostel--reset-cursor-point` (normal→insert) and
-`evil-ghostel--cursor-to-point` (insert→normal).
+**Ghostel:** `evil-ghostel-mode` (already configured) handles cursor sync
+automatically — it syncs point with terminal cursor on evil state transitions
+via `evil-ghostel--reset-cursor-point` and `evil-ghostel--cursor-to-point`.
 
 **Decision:** Remove the manual snap — evil-ghostel covers it.
 
@@ -197,12 +212,12 @@ via `evil-ghostel--reset-cursor-point` (normal→insert) and
 ## Zoxide Travel (Eaterz) Port
 
 The eaterz system is a self-contained pipeline:
-- `zoxide query -ls` → consult async → embark actions → cd in terminal
+- `zoxide query -ls` -> consult async -> embark actions -> cd in terminal
 
 **Ghostel equivalents:**
-- `eat-term-parameter eat-terminal 'eat--process` → `ghostel--process`
-- `eat--send-string proc "cd DIR\n"` → `ghostel-send-string "cd DIR\n"`
-- `derived-mode-p 'eat-mode` → `derived-mode-p 'ghostel-mode`
+- `eat-term-parameter eat-terminal 'eat--process` -> `ghostel--process`
+- `eat--send-string proc "cd DIR\n"` -> `ghostel-send-string "cd DIR\n"`
+- `derived-mode-p 'eat-mode` -> `derived-mode-p 'ghostel-mode`
 
 The consult/embark/vertico pipeline stays identical. Only the terminal send
 mechanism changes.
@@ -217,115 +232,97 @@ Ghostel uses `ghostel-semi-char-non-bound-keys` (same format as eat's):
 ```
 
 The keymap names change:
-- `eat-semi-char-mode-map` → `ghostel-semi-char-mode-map`
-- `eat--semi-char-mode-map` → `ghostel--semi-char-mode-map`
+- `eat-semi-char-mode-map` -> `ghostel-semi-char-mode-map`
+- `eat--semi-char-mode-map` -> `ghostel--semi-char-mode-map`
 
-The dolist in keybinds.el gets updated with ghostel equivalents.
+Moved into `ghostel/ghostfire.el` (was in keybinds.el for eat).
 
 ---
 
 ## Implementation Order
 
-### Phase 1: Core ghostel config (ghostel-firemacs.el)
-1. `use-package ghostel` + `use-package evil-ghostel` (move from init.el)
+### Phase 1: Core ghostel config (ghostel/ghostfire.el) [DONE]
+1. `use-package ghostel` + `use-package evil-ghostel` (moved from init.el)
 2. `my/ghostel-next-available` — index scanning
-3. `my/ghostel-new` — spawn at index, "N  PID" naming
-4. `ghostel-buffer-name-function` — custom buffer naming
-5. `my/ghostel-spawn-at-index` — helper for consult-buffer
-6. `my/ghostel-buffer-list` — list all ghostel-mode buffers
+3. `my/ghostel-new` — spawn at index, "N  <PID>" naming
+4. `my/ghostel-spawn-at-index` — helper for consult-buffer
+5. `my/ghostel-buffer-list` — list all ghostel-mode buffers
 
-### Phase 2: Mode-aware dispatch
-7. `my/ghostel-new-dispatch-alist`
-8. `my/ghostel-new-from-grease` (with kill-on-spawn)
-9. `my/ghostel-new-dispatch`
+### Phase 2: Mode-aware dispatch [DONE]
+6. `my/ghostel-new-dispatch-alist`
+7. `my/ghostel-new-from-grease` (with kill-on-spawn)
+8. `my/ghostel-new-dispatch`
 
-### Phase 3: Zoxide travel (eaterz port)
-10. Port entire eaterz system — consult/embark/zoxide pipeline
-11. `my/zoxide-travel-dispatch` updated
+### Phase 3: Zoxide travel (eaterz port) [DONE]
+9. Full ghostfire system — consult/embark/zoxide pipeline
 
-### Phase 4: Compose buffer
-12. `my/ghostel-compose` / `my/ghostel-compose-send` / `my/ghostel-compose-cancel`
+### Phase 4: Compose buffer [DONE]
+10. `my/ghostel-compose` / send / cancel
 
-### Phase 5: Cross-file integration
-13. `keybinds.el` — all eat references updated
-14. `consult-buffer.el` — eat source → ghostel source
-15. `MRU-tabs.el` — group name
-16. `panes.el` — hook change
-17. `grease.el` — cd-on-quit rename and API update
-18. `custom.el` — package list
+### Phase 5: Cross-file integration [NEXT]
+11. `keybinds.el` — all eat references updated
+12. `consult-buffer.el` — eat source -> ghostel source
+13. `MRU-tabs.el` — group name
+14. `panes.el` — hook change
+15. `grease.el` — cd-on-quit rename and API update
+16. `custom.el` — package list
 
 ### Phase 6: Width correction
-19. Test ghostel rendering with statuscolumn
-20. Remove width correction if ghostel handles natively
-21. If needed, find ghostel equivalent hook
+17. Test ghostel rendering with statuscolumn
+18. Remove width correction if ghostel handles natively
+19. If needed, find ghostel equivalent hook
 
 ### Phase 7: Cleanup
-22. `init.el` — update terminal section
-23. Delete `eat-firemacs.el` (already deletable now — stale duplicate)
-24. Delete `eat/eaterz.el`
-25. Update patch docs
-26. Remove `eat` from `elpa/` (optional — will be unused but harmless)
+20. `init.el` — update terminal section
+21. Delete `eat/eaterz.el`
+22. Update patch docs
 
 ---
 
 ## Open Questions
 
-### Q1. Ghostel buffer naming — "N  PID" format
+### Q1. Ghostel buffer naming — resolved
 
-Ghostel uses `ghostel-buffer-name-function`. We'll set a custom function
-that reads `ghostel--process` for PID and an index counter for the prefix.
+We override `ghostel-buffer-name` dynamically before calling `(ghostel t)`.
+Ghostel uses `generate-new-buffer` which gets the base name from the
+`ghostel-buffer-name` defcustom. After the process starts, we rename
+to include the PID.
 
-**Question:** Can we intercept ghostel's buffer creation to name it "N  PID"
-before it's displayed, or do we need to create+rename? The eat approach
-creates a "N  waiting" buffer first, then renames after the process starts.
+### Q2. Width correction — needs testing
 
-**Tentative answer:** Same approach — create with temp name, spawn,
-rename after process is live.
+### Q3. `ghostel-semi-char-non-bound-keys` format — needs verification
 
-### Q2. Width correction — needed or not?
+Expected to use the same `[?\e ?t]` vector format as eat. The `ghostfire.el`
+code assumes this and includes a `(boundp ...)` guard.
 
-See analysis above. **Test first.**
+### Q4. Grease `grease-eat-cd-on-quit` — rename needed
 
-### Q3. `ghostel-semi-char-non-bound-keys` format
+Recommend renaming to `grease-ghostel-cd-on-quit`.
 
-Eat uses `[?\e ?t]` vectors. Does ghostel use the exact same format?
-**Likely yes** — ghostel's input modes are eat-inspired.
+### Q5. `my/dired-from-eat` function name — rename suggested
 
-### Q4. Grease `grease-eat-cd-on-quit` — rename or keep alias?
-
-The defcustom and function names reference "eat". We should rename:
-- `grease-eat-cd-on-quit` → `grease-terminal-cd-on-quit` (generic)
-- Or keep separate ghostel variant with eat→ghostel rename
-
-**Recommendation:** Rename to ghostel-specific. Eat is being removed.
-
-### Q5. `my/dired-from-eat` function name
-
-Rename to `my/dired-from-terminal` (generic) or `my/dired-from-ghostel`?
-
-**Recommendation:** `my/dired-from-terminal` — generic, works for any future
-terminal backend changes.
+Recommend: `my/dired-from-terminal` (backend-agnostic).
 
 ---
 
 ## Test Checklist
 
-1. `M-t` from any non-grease buffer → spawns ghostel at index 1, `default-directory`
-2. `M-t` again → spawns ghostel at index 2
-3. Kill terminal 1, `M-t` → reuses index 1
-4. `M-t` from grease buffer → spawns in `grease--root-dir`, kills grease buffer
-5. `M-t` from grease with unsaved changes → saves first, then spawns + kills
-6. Buffer naming: `"1  <PID>"`, `"2  <PID>"`, etc.
-7. `M-z` in ghostel buffer → zoxide directory travel works (cd + clear)
-8. `C-e` from ghostel → opens dired at terminal's `default-directory`
-9. `C-e` from dired → closes dired, returns to ghostel
-10. `M-i` → consult-buffer shows "Ghostel" section with existing terminals
-11. Type a number in consult-buffer → spawns ghostel at that index
-12. Tab bar shows "Ghostel " group with terminal buffers
+1. `M-t` from any non-grease buffer -> spawns ghostel at index 1, `default-directory`
+2. `M-t` again -> spawns ghostel at index 2
+3. Kill terminal 1, `M-t` -> reuses index 1
+4. `M-t` from grease buffer -> spawns in `grease--root-dir`, kills grease buffer
+5. `M-t` from grease with unsaved changes -> saves first, then spawns + kills
+6. Buffer naming: `"1  <PID>"`, `"2  <PID>"`, etc.
+7. `M-z` in ghostel buffer -> zoxide directory travel works (cd + clear)
+8. `C-e` from ghostel -> opens dired at terminal's `default-directory`
+9. `C-e` from dired -> closes dired, returns to ghostel
+10. `M-i` -> consult-buffer shows "Ghostel" section with existing terminals
+11. Type a number in consult-buffer -> spawns ghostel at that index
+12. Tab bar shows "Ghostel" group with terminal buffers
 13. Pane wrap glyphs work correctly in ghostel buffers
 14. Modeline git segment suppressed for ghostel buffers
-15. Grease quit → `cd` sent to originating ghostel terminal
+15. Grease quit -> `cd` sent to originating ghostel terminal
 16. Non-bound keys (M-t, M-r, M-k, etc.) pass through to Emacs
 17. Evil insert-state cursor sync works (evil-ghostel)
 18. Terminal renders correctly with statuscolumn (width test)
-19. Compose buffer: `my/ghostel-compose` → write → `C-c C-c` sends to ghostel
+19. Compose buffer: `my/ghostel-compose` -> write -> `C-c C-c` sends to ghostel
